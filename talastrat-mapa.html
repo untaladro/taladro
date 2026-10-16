@@ -1,0 +1,747 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>talastrat · mapa del motor</title>
+<style>
+:root{
+  --bg:#080d0b;--panel:#0d1512;--panel2:#111c18;--panel3:#16241f;--border:#1e2f28;--border2:#2b453b;
+  --text:#c8d8d0;--dim:#64897c;--faint:#3d5750;
+  --verde:#54b391;--metal:#8fbfae;--rojo:#c94f4f;--ambar:#e0a341;--azul:#5a9fd4;--violeta:#9b87d4;--cyan:#3ec6b8;
+  --mono:ui-monospace,"SF Mono","Cascadia Mono","JetBrains Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13px;height:100%}
+body{display:flex;flex-direction:column;overflow:hidden}
+
+header{display:flex;align-items:baseline;gap:14px;padding:11px 18px 9px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.brand{font-size:15px;letter-spacing:.14em;color:var(--verde);font-weight:700;text-transform:uppercase}
+.brand b{color:var(--text)}
+.sub{color:var(--dim);font-size:11px}
+.hsearch{margin-left:auto;display:flex;align-items:center;gap:7px;background:var(--panel2);border:1px solid var(--border2);border-radius:4px;padding:5px 9px}
+.hsearch input{all:unset;font:inherit;font-size:12px;color:var(--text);width:190px}
+.hsearch input::placeholder{color:var(--faint)}
+.hsearch span{color:var(--faint);font-size:11px}
+.scopekey{display:flex;gap:9px;font-size:10px;color:var(--dim);align-items:center}
+.sc{display:inline-block;padding:1px 5px;border-radius:3px;border:1px solid;font-size:9.5px;letter-spacing:.08em}
+.sc.mot{color:var(--verde);border-color:var(--verde)}
+.sc.vis{color:var(--azul);border-color:var(--azul)}
+.sc.dat{color:var(--ambar);border-color:var(--ambar)}
+.sc.bld{color:var(--violeta);border-color:var(--violeta)}
+
+nav{display:flex;gap:2px;padding:0 18px;border-bottom:1px solid var(--border);background:var(--panel);flex-shrink:0;overflow-x:auto}
+nav button{all:unset;border-bottom:2px solid transparent;color:var(--dim);font-size:11px;letter-spacing:.16em;
+  text-transform:uppercase;padding:10px 14px;cursor:pointer;white-space:nowrap}
+nav button:hover{color:var(--text)}
+nav button.on{color:var(--verde);border-bottom-color:var(--verde)}
+nav button:focus-visible{outline:1px solid var(--verde);outline-offset:-2px}
+
+main{flex:1;min-height:0;display:grid;grid-template-columns:1fr 400px}
+#body{overflow-y:auto;padding:0}
+#det{border-left:1px solid var(--border);background:var(--panel);overflow-y:auto;padding:16px 16px 30px}
+.pane{display:none}.pane.on{display:block}
+
+/* ---------- árbol ---------- */
+.grp{border-bottom:1px solid var(--border)}
+.grp>.gh{display:flex;align-items:center;gap:9px;padding:9px 16px;cursor:pointer;background:var(--panel)}
+.grp>.gh:hover{background:var(--panel2)}
+.gh .car{color:var(--faint);width:9px;font-size:10px}
+.gh .gt{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim)}
+.gh .gn{margin-left:auto;color:var(--faint);font-size:10px}
+.grp.open>.gh .car{color:var(--verde)}
+.gb{display:none;padding:2px 0 8px}
+.grp.open>.gb{display:block}
+
+.feat{display:flex;align-items:baseline;gap:9px;padding:6px 16px 6px 30px;cursor:pointer;border-left:2px solid transparent}
+.feat:hover{background:var(--panel2)}
+.feat.sel{background:var(--panel3);border-left-color:var(--verde)}
+.feat .fn{font-weight:700;font-size:12.5px}
+.feat .fd{color:var(--dim);font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.feat .fm{display:flex;gap:5px;flex-shrink:0;align-items:center}
+.feat .cnt{color:var(--faint);font-size:10px}
+.feat .des{color:var(--faint);font-size:9.5px;border:1px solid var(--border2);border-radius:3px;padding:1px 4px;white-space:nowrap}
+.feat.hide{display:none}
+.grp.hide{display:none}
+
+/* ---------- detalle ---------- */
+#det .kick{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);margin-bottom:5px}
+#det h2{font-size:15px;margin-bottom:3px;letter-spacing:.02em}
+#det .lead{color:var(--dim);font-size:11.5px;line-height:1.55;margin:6px 0 4px}
+#det h3{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);margin:15px 0 6px;border-top:1px solid var(--border);padding-top:9px}
+#det ul{list-style:none}
+#det li{padding:4px 0 4px 14px;position:relative;font-size:12px;line-height:1.55}
+#det li::before{content:"·";position:absolute;left:2px;color:var(--verde)}
+#det li b{color:#e4f0ea;font-weight:700}
+#det code,td code,.tw code{background:var(--panel2);border:1px solid var(--border);border-radius:3px;padding:0 4px;color:var(--cyan);font-size:11px}
+#det .por{border-left:2px solid var(--rojo);padding:7px 0 7px 10px;color:var(--dim);font-size:11.5px;line-height:1.55;margin-top:10px}
+#det .por b{color:var(--rojo);font-weight:700;letter-spacing:.1em;font-size:10px;display:block;margin-bottom:3px}
+#det .no{border-left:2px solid var(--faint);padding:7px 0 7px 10px;color:var(--dim);font-size:11.5px;line-height:1.55;margin-top:10px}
+#det .no b{color:var(--faint);font-weight:700;letter-spacing:.1em;font-size:10px;display:block;margin-bottom:3px}
+#det .hint{color:var(--faint);font-size:10.5px;margin-top:20px}
+
+/* ---------- tablas ---------- */
+.tw{padding:14px 18px 34px}
+.tw>p.intro{color:var(--dim);font-size:11.5px;line-height:1.6;max-width:860px;margin-bottom:12px}
+.tw>h3{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);margin:22px 0 8px}
+table{width:100%;border-collapse:collapse}
+th{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);text-align:left;
+  padding:6px 8px;border-bottom:1px solid var(--border2);position:sticky;top:0;background:var(--bg);z-index:2}
+td{padding:6px 8px;border-bottom:1px solid var(--border);font-size:11.5px;vertical-align:top;line-height:1.45}
+tbody tr:hover td{background:var(--panel2)}
+td.k{color:var(--verde);white-space:nowrap}
+td.n{color:var(--dim)}
+td.v{color:var(--metal);white-space:nowrap}
+.pos{color:var(--verde)}.neg{color:var(--rojo)}.mut{color:var(--faint)}
+.tag{font-size:9.5px;letter-spacing:.08em;padding:1px 5px;border-radius:3px;border:1px solid;white-space:nowrap}
+.tag.on{color:var(--verde);border-color:var(--verde)}
+.tag.off{color:var(--rojo);border-color:var(--rojo)}
+.tag.mid{color:var(--ambar);border-color:var(--ambar)}
+.tag.neu{color:var(--faint);border-color:var(--faint)}
+td .hint2{color:var(--faint);font-size:10.5px}
+
+#tip{position:fixed;z-index:99;display:none;max-width:340px;background:#0a1210;border:1px solid var(--border2);
+  border-radius:4px;padding:9px 11px;color:var(--dim);font-size:11px;line-height:1.55;box-shadow:0 8px 24px rgba(0,0,0,.6);pointer-events:none}
+#tip b{color:var(--text)}
+[data-tip]{cursor:help}
+
+footer{border-top:1px solid var(--border);color:var(--faint);font-size:10.5px;padding:7px 18px;display:flex;gap:16px;flex-shrink:0}
+footer b{color:var(--dim);font-weight:400}
+
+@media (max-width:920px){main{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) minmax(0,.85fr)}
+  #det{border-left:none;border-top:1px solid var(--border)}.hsearch input{width:120px}}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="brand">tala<b>strat</b></span>
+  <span class="sub">mapa del motor</span>
+  <span class="scopekey">
+    <span class="sc mot">motor</span><span class="sc vis">vista</span><span class="sc dat">dato</span><span class="sc bld">build</span>
+  </span>
+  <label class="hsearch"><span>/</span><input id="q" type="text" placeholder="filtrar piezas…" autocomplete="off" spellcheck="false"></label>
+</header>
+
+<nav id="nav">
+  <button data-p="tree" class="on">Piezas</button>
+  <button data-p="est">Estados</button>
+  <button data-p="umb">Umbrales</button>
+  <button data-p="reg">Reglas</button>
+  <button data-p="deu">Deuda</button>
+</nav>
+
+<main>
+  <div id="body">
+    <div class="pane on" data-p="tree" id="tree"></div>
+    <div class="pane" data-p="est" id="est"></div>
+    <div class="pane" data-p="umb" id="umb"></div>
+    <div class="pane" data-p="reg" id="reg"></div>
+    <div class="pane" data-p="deu" id="deu"></div>
+  </div>
+  <aside id="det"></aside>
+</main>
+
+<footer>
+  <span><b>piezas</b> — clic en una para el detalle · pasá el mouse por cualquier celda para su explicación</span>
+  <span style="margin-left:auto">visualización suelta — no entra en el build de index.html</span>
+</footer>
+
+<div id="tip"></div>
+
+<script>
+/* ================= tooltip ================= */
+const tip=document.getElementById("tip");
+document.addEventListener("mouseover",e=>{const t=e.target.closest("[data-tip]");if(!t)return;
+  tip.innerHTML=t.dataset.tip;tip.style.display="block";move(e);});
+document.addEventListener("mousemove",e=>{if(tip.style.display==="block")move(e);});
+document.addEventListener("mouseout",e=>{if(e.target.closest("[data-tip]"))tip.style.display="none";});
+function move(e){const w=tip.offsetWidth,h=tip.offsetHeight;let x=e.clientX+14,y=e.clientY+16;
+  if(x+w>innerWidth-8)x=e.clientX-w-14; if(y+h>innerHeight-8)y=e.clientY-h-16;
+  tip.style.left=Math.max(4,x)+"px";tip.style.top=Math.max(4,y)+"px";}
+
+/* ================= árbol de piezas =================
+   cp: mot(motor, engine.js) | vis(vista, shell.html) | dat(dato/persistencia) | bld(build y pruebas)
+   des: desde cuántas operaciones cerradas existe la pieza. null = siempre. */
+const TREE=[
+
+{g:"Ingesta",n:"de la API pública a operaciones",items:[
+ {nm:"Fuente Hyperliquid",cp:"dat",des:null,fd:"POST /info · seis endpoints, todo en el navegador",
+  lead:"No hay servidor. La página le pega directo a <code>api.hyperliquid.xyz/info</code> con la dirección pública de la wallet y procesa todo del lado del cliente.",
+  pts:["<code>userFillsByTime</code>, <code>userFunding</code>, <code>clearinghouseState</code>, <code>frontendOpenOrders</code>, <code>portfolio</code>, <code>webData2</code>",
+  "Los perps HIP-3 traen el dex adelante del coin: <code>xyz:DRAM</code>. Para el <code>clearinghouseState</code> de esos mercados hay que mandar <code>dex</code>, y el código prueba tres variantes con fallback.",
+  "Margen de mantenimiento = mitad del margen inicial al apalancamiento <b>máximo</b> del activo. DRAM y SPCX llegan a 20× → 2,5%. MU, SKHY y SNDK a 10× → 5%.",
+  "Nunca pide clave privada. No puede operar ni mover fondos."],
+  por:"Ningún archivo con una wallet real entra al repo, y el build corta si aparece una dirección <code>0x…</code> en el HTML generado."},
+
+ {nm:"buildTrades",cp:"mot",des:null,fd:"de posición plana a posición plana",
+  lead:"Reconstruye operaciones a partir de fills sueltos. Un scale-in es una sola operación, no tres.",
+  pts:["Acumula hasta que la posición vuelve a cero; ahí cierra el trade y calcula entrada, salida, duración, notional, fees y retorno",
+  "<code>attachFunding</code> le pega el funding pagado o cobrado durante la vida de la posición",
+  "Cada trade queda con <code>session</code>, <code>tramo</code> y <code>evento</code> ya etiquetados, para que las comparativas no tengan que recalcular nada",
+  "<b>Devuelve por apertura, pero <code>computeStats</code> reordena por cierre</b> y ése es el orden canónico de toda la app"],
+  por:"<b>La racha es un estado psicológico y lo dispara enterarte del resultado, no haber abierto.</b> Con un solo instrumento los dos órdenes coinciden; con varios perps abiertos en paralelo no, y ahí el tilt se encendía por una secuencia que él nunca vivió — tres pérdidas seguidas porque abrieron seguidas, aunque entre medio hubiera cerrado una ganadora. Se ordena una sola vez: dos vistas ordenadas al lado serían la trampa que este proyecto ya pisó con <code>escalaTamano</code> y con la banda. El desempate por <code>entryTime</code> no es decorativo — sin él, dos cierres en el mismo milisegundo dejan el orden a merced del sort del navegador y las rachas cambian entre recargas."},
+
+ {nm:"Liquidaciones",cp:"mot",des:null,fd:"campo <code>liquidation</code>, no <code>dir</code>",
+  lead:"Se detectan por el campo <code>liquidation</code> del fill.",
+  pts:["<code>dir</code> dice “Close Long” idéntico en un cierre voluntario y en una liquidación: leerlo ahí da cero liquidaciones siempre",
+  "Una liquidación rompe <code>habitos.intacto</code>, es motivo de tilt y es falla de <code>aire.regla</code>"],
+  por:"Fue el primer error documentado del proyecto: afirmé que no había liquidaciones porque busqué en el campo equivocado. La hipótesis era correcta; el lugar, no."},
+
+ {nm:"Tiempo",cp:"mot",des:null,fd:"día de Buenos Aires · sesiones de Nueva York",
+  lead:"Dos relojes con trabajos distintos, y ninguno es el del navegador.",
+  pts:["<code>diaBA</code> y <code>relojBA</code> (UTC−3 fijo) son la <b>única</b> forma de agrupar por día o por hora en todo el motor",
+  "La clasificación de sesiones y tramos sigue en Nueva York, porque describe al mercado, no al día vivido",
+  "asia 21:00–03:30 · hueco 03:30–05:00 · pre 05:00–10:30 · rueda 10:30–17:00 · after 17:00–21:00 · finde vie 21:00 → dom 21:00",
+  "<b>Esos horarios en hora de Buenos Aires valen solo con horario de verano de EEUU.</b> En enero la rueda cae 11:30–18:00, porque Nueva York atrasa y Argentina no. Son texto de referencia: <code>cintaDelDia</code> le pregunta al motor minuto a minuto en vez de leerlos",
+  "La rueda está partida en cinco tramos —apertura, media mañana, mediodía, tarde, cierre— porque él identificó cambios de régimen adentro. Son momentos para prestar atención, jamás señales.",
+  "Argentina no cambia de hora desde 2009, así que UTC−3 fijo es exacto y no depende de que exista <code>Intl</code>"],
+  por:"Antes convivían tres husos: <code>s.days</code> agrupaba en UTC, <code>todayBySession</code> y <code>buildDayPlan</code> en el reloj del navegador, y las sesiones en Nueva York. Consecuencia real: la mediana diaria y el techo de ráfaga salían de días UTC mientras “hoy llevás N” salía de días locales, así que toda operación de la noche argentina caía en un día para una cuenta y en otro para la otra."},
+
+ {nm:"Persistencia",cp:"dat",des:null,fd:"IndexedDB · localStorage de red · archivo tuyo",
+  lead:"Sin esto las rachas no existen: cada recarga volvería a cero.",
+  pts:["IndexedDB <code>taladro</code> como principal, <code>localStorage</code> como red de contención",
+  "Si el navegador tiene File System Access, <b>Vincular archivo</b> escribe además un JSON tuyo que sobrevive a borrar el sitio",
+  "<code>DATOS</code> guarda notas, holguras, declaraciones, el ejercicio en curso, <b>el techo de pérdida declarado</b>, los callados de Taladro y el índice de rotación del repertorio",
+  "El tema vive aparte, en <code>localStorage</code>, y no en <code>DATOS</code>"],
+  por:"El tema se aplica en un <code>&lt;script&gt;</code> del <code>&lt;head&gt;</code>, antes de pintar. Si viviera en <code>DATOS</code> —que está en IndexedDB, asíncrono— la página arrancaría oscura y saltaría a clara un cuadro después."},
+]},
+
+{g:"Escala",n:"la referencia única de “tu tamaño de siempre”",items:[
+ {nm:"escalaTamano",cp:"mot",des:null,fd:"exposición si hay serie de cuenta, notional si no",
+  lead:"Devuelve <code>notional / colateral</code> cuando la cobertura de la serie de cuenta llega al 80%, y notional crudo si no. Siempre dice cuál eligió.",
+  pts:["<code>habitos.tamano</code>, <code>tilt</code>, <code>aire.regla</code>, <code>aire.salto</code> y <code>aire.rTam</code> preguntan todas acá",
+  "Antes había tres definiciones sueltas y la misma operación podía cumplir una y fallar otra",
+  "<code>fmt</code> cambia con la base: <b>1,4× tu cuenta</b> o <b>US$14,20</b>"],
+  por:"El notional no es una decisión. Con apalancamiento fijo es colateral × 20: si perdés entra más chico solo, si ganás entra más grande solo. Medir consistencia sobre notional crudo medía el PnL con otro nombre — y el sesgo iba al revés de lo que la app quiere: una cuenta que cae despacio arrastra la mediana con ella y da verde permanente, mientras que <b>componer la cuenta apagaba el modo aire</b>. Él lo vio primero."},
+
+ {nm:"anotarExposicion · equityEn",cp:"mot",des:null,fd:"colateral interpolado desde accountValueHistory",
+  lead:"El colateral sale del endpoint <code>portfolio</code>, que ya se descargaba y solo alimentaba un gráfico.",
+  pts:["<code>equityEn</code> interpola entre los dos puntos que encierran la operación",
+  "Devuelve <code>null</code> fuera del rango de la serie, con una cola de tolerancia de 7 días pasado el último punto",
+  "En HIP-3 cada dex lleva margen propio, así que la exposición se mide contra el colateral de <b>su</b> dex (<code>seriesPorDex</code>)"],
+  por:"Extrapolar el colateral sería inventar el denominador de todo lo demás.",
+  por2:"<b>Mirado el 3 de agosto, y el umbral no se movió.</b> Cobertura del 99% (174 de 175) contra un <code>EXP_COBERTURA_MIN</code> de 0,8: no está ni cerca de morder. Pero el número que importaba era otro — <code>cobertura</code> cuenta si se produjo un número, no si se midió cerca de la operación. Se construyó <code>gapEn</code> para ver la distancia de cada entrada al punto real más cercano: mediana 44 min, peor caso <b>10,1 horas</b>. El agujero más grande de la serie es de 10,2 <i>días</i> y ninguna entrada cayó adentro, porque <code>portfolio</code> anota puntos cuando hay actividad y no a reloj: sus agujeros coinciden con los agujeros de su operatoria.",
+  no:"<b>Lo que reabre esto:</b> que la serie pase a ser por reloj en vez de por actividad, o que aparezca un dex que anote distinto. Ahí los agujeros dejan de alinearse con los suyos y <code>equityGap</code> vuelve a importar. El instrumento quedó puesto para ese día. No se puso ningún umbral: el número dio bien y poner un corte ahora sería agregar un “a ojo” nuevo para un problema que la medición dice que no está."},
+
+ {nm:"bandaRiesgo",cp:"mot",des:null,fd:"el techo que declaraste, o tu promedio si no declaraste ninguno",
+  lead:"La hermana exacta de <code>escalaTamano</code>: la única definición de <b>cuánto puede costarte una operación</b>. Escribís el número en frío desde <code>prepPanel</code>; si no lo escribís, cae a la pérdida promedio de tus últimas 20. Siempre dice cuál eligió.",
+  pts:["Define “pérdida contenida” en <code>habitos</code>, motivo y línea limpia del <code>tilt</code>, falla de regla en <code>aire</code>, el habilitado del <code>presupuesto</code> y el aviso de stop de <code>analyzePositions</code>",
+  "<b>Devuelve dos números y confundirlos es fácil.</b> <code>valor</code> es cuánto arriesgás —lo consume <code>presupuesto</code> y el calculador de tamaño—; <code>limite</code> es hasta dónde una pérdida todavía cuenta como cumplida, y lo consumen los tests de conducta",
+  "Con techo declarado los dos coinciden. Con banda observada, <code>limite = valor × BANDA_TOL</code> (1,5). <b>El múltiplo vive adentro y ningún consumidor multiplica nada</b>",
+  "La deriva —tu promedio observado contra el techo que escribiste— se muestra con los dos números al lado, y la declarada no se mueve nunca sola",
+  "Sin ninguna banda, <code>dentro()</code> devuelve <code>null</code>: la operación sale del denominador en vez de contar como falla"],
+  por:"<b>Una regla de riesgo que se mueve sola con tus pérdidas no es una regla.</b> Antes era <code>adherence.rec.avgLoss</code> copiado en seis lugares: si las pérdidas crecían despacio, la referencia crecía con ellas, el hábito marcaba verde para siempre y el <code>tilt</code> dejaba de encontrar motivo justo cuando más lo habría. El patrón que la reemplaza ya estaba probado dos veces —el <b>ejercicio</b> y <code>edgeDeclarado</code>— y es siempre el mismo: se elige antes, se mide adherencia después.",
+  por2:"<b>Y por qué el techo declarado no lleva el ×1,5.</b> La tolerancia existía porque un promedio la necesita: pedirle a alguien que no supere nunca su propia media es un hábito que falla el 50% de las veces por construcción. Un techo elegido no la necesita, porque el número ya <i>es</i> el borde, y sumarle 50% lo convierte en otro número que él no escribió.",
+  no:"<b>Qué lo falsaría:</b> que nunca lo escribas. A los dos meses con la banda declarada vacía, la móvil con todos sus defectos era mejor que la correcta que nadie cargó. Y por separado: que con el techo exacto la racha de <code>perdida</code> quede clavada en cero — ahí lo que está mal es el número declarado y no la falta de tolerancia, y el que lo dice es la deriva."},
+]},
+
+{g:"Conducta",n:"acciones controlables, nunca resultados",items:[
+ {nm:"habitos",cp:"mot",des:3,fd:"cuatro conductas, con conteos y no porcentajes",
+  lead:"Todo lo que se mide acá dependió de vos. El PnL no entra nunca.",
+  pts:["<b>Pérdida contenida</b> — cerrar la perdedora dentro del techo que declaraste, o de 1,5× tu pérdida promedio si no declaraste ninguno (<code>bandaRiesgo</code>)",
+  "<b>Sin liquidaciones</b> — cerrar vos, no el exchange",
+  "<b>Tamaño consistente</b> — exposición entre 0,5× y 2× de tu mediana",
+  "<b>Entrada con límite</b> — <code>makerEntry</code>; queda fuera del núcleo del aire y del cálculo diario a propósito, porque es preferencia de ejecución y no control de riesgo",
+  "Cada uno lleva racha actual, mejor racha histórica, cuántas rompió y una serie visual de las últimas 20",
+  "Metas de racha: 3, 5, 10, 20, 50, 100, 250"],
+  por:"Se dice <b>3 de tus últimas 20</b> y nunca “15%”: nadie se olvida la bolsa del supermercado el 15% de las veces."},
+
+ {nm:"adherenciaDiaria",cp:"mot",des:10,fd:"días cargados contra días tranquilos",
+  lead:"El día es la unidad en la que esto se vive: nadie decide “mi próxima operación va a ser distinta”, decide que hoy va a hacer las cosas de otra manera.",
+  pts:["Para cada día operado calcula qué fracción de las conductas se sostuvo",
+  "El corte son <b>terciles sobre la cantidad diaria</b>, aplicados a todos los días",
+  "Solo habla si el patrón aguanta las dos mitades del historial",
+  "Pide <b>8 días operados en total</b> (<code>DIAS_MIN</code>) y al menos 3 de cada lado del corte"],
+  por:"El corte <b>no</b> puede ser la mediana diaria: con distribución bimodal cae encima de un modo y un lado queda vacío. Tampoco un ranking de días: desempatar por fecha manda los cargados a una punta del historial y los tranquilos a la otra, y ahí el split-half deja de controlar la época.",
+  no:"<b>No pronostica.</b> La app no puede saber si hoy va a ser un día difícil, porque <code>userFillsByTime</code> devuelve operaciones y no precios ni volatilidad del subyacente. Cualquier proxy de FOMO armado con fills sería inventar la variable — el mismo motivo por el que “no mantener la calma” quedó sin medir."},
+
+ {nm:"adherence",cp:"mot",des:24,fd:"últimas 20 contra todo lo anterior",
+  lead:"Qué estás sosteniendo y qué soltaste. Necesita al menos 20 recientes más 4 de base.",
+  pts:["Compara acierto, pérdida promedio, peor pérdida, duración de perdedoras y ganadoras, notional, liquidaciones y expectativa",
+  "De acá sale la banda que usa media app",
+  "<code>buildDayPlan</code> lee esta comparación para avisar deriva de técnica"]},
+
+ {nm:"presupuesto",cp:"mot",des:8,fd:"mediana de las últimas 5, contra el tamaño que la banda habilita",
+  lead:"Cuánto notional te habilita tu propia banda dado tu stop típico, y cuánto estás usando.",
+  pts:["<b>Stop típico = la distancia al stop que la app te vio poner en vivo</b> (<code>holguraHist.stopMediano</code>), no cómo salieron tus perdedoras",
+  "Con menos de <b>5 posiciones observadas con stop</b> la pieza se apaga, y dice qué le falta en vez de desaparecer",
+  "Habilitado = banda ÷ (stop típico / 100)",
+  "Estados: <span class='tag mid'>corto</span> por debajo de 0,6 · <span class='tag on'>en banda</span> · <span class='tag off'>pasado</span> por encima de 1,5"],
+  por:"La ventana es de <b>5</b> y no de 10: con diez, cambiar tres operaciones no movía la mediana y la barra parecía rota.",
+  por2:"<b>La tautología está cerrada por las dos puntas (3.1 y 3.3).</b> Era <code>habilitado = banda ÷ (stopTípico/100)</code> con <code>stopTípico</code> sacado de <code>|net| / notional</code> de las perdedoras: si la pérdida relativa fuera constante, el habilitado sería el promedio del notional <i>por construcción</i>, y como el notional se mueve solo con el colateral, <b>la barra podía marcarte “corto” simplemente porque perdiste</b>. 3.1 sacó la banda del PnL con el techo declarado; 3.3 sacó el stop, que ahora es el observado en vivo.",
+  no:"<b>Se apaga más seguido que antes, y es a propósito.</b> La holgura tiene cobertura parcial por diseño —solo cubre lo que la app llegó a ver abierto— así que sin 5 observadas no hay barra. La alternativa era caer al cálculo viejo con un rótulo, y se descartó porque <b>es más fácil ignorar un rótulo que una barra apagada</b>. Apagada no es muda: dice cuántas lleva, cuántas faltan y por qué no se calcula con lo que hay. Lo que la reabriría es que a los dos meses siga apagada — ahí el problema es la cobertura, no el criterio."},
+
+ {nm:"adherenciaSesion",cp:"mot",des:3,fd:"la conducta por franja horaria — diez celdas",
+  lead:"<code>bySession</code> guarda <code>{n, net, wins}</code> y <b>las tres son resultado</b>. Esta agrupa la conducta: cómo se porta el proceso en cada franja, no cuánto se ganó en cada una.",
+  pts:["<b>Diez celdas:</b> cinco sesiones fuera de la rueda —asia, hueco, pre, after, <b>finde</b>— más los cinco tramos en que la rueda está subdividida",
+  "La rueda no es celda propia, o sus operaciones quedarían contadas dos veces",
+  "Se guardan todas y se muestran las que llegan a <b>5 juicios medibles</b>; las flacas dicen <i>sin muestra</i>",
+  "<b>Un juicio no es una operación:</b> cada operación aporta tantos como hábitos se le hayan podido medir, así que una celda puede tener 2 operaciones y 6 juicios",
+  "<code>separa</code> contesta si la adherencia varía por hora, barajando a qué celda pertenece cada juicio"],
+  por:"<b>Una celda vacía es información</b> —dice que casi no operás ahí— y colapsarla la esconde. Por eso <code>pct</code> es <code>null</code> y no 0 debajo del mínimo: en un mapa pintado por adherencia esa es la diferencia entre gris y rojo. Y la invariante 2 va entera: <code>sd</code> sale del denominador, porque si no, una franja con agujeros en la serie de colateral tendría peor adherencia sin que él hubiera hecho nada distinto — <b>el mapa estaría pintando la cobertura de un endpoint con los colores de la disciplina.</b>",
+  no:"<b>Es la pieza que decide si 4.5 y 4.6 valen la pena.</b> Si las diez celdas no separan nada, el mapa del día y el PVT se caen con ella aunque los dibujos funcionen — y eso es la buena noticia del ítem: la parte barata es la que decide si vale la pena la cara. El número sale de abrir Diagnóstico."},
+
+ {nm:"errorPronostico",cp:"mot",des:null,fd:"la quinta forma de fallar, sin proxy",
+  lead:"“No mantener la calma” quedó sin medir a propósito, porque el único proxy disponible —las reentradas calientes— lo desmintieron sus propios datos. <b>Una pregunta directa no es un proxy: es la fuente.</b>",
+  pts:["<b>No se guarda el nivel, se guarda la diferencia entre dos lecturas.</b> El pronóstico se declara antes de entrar; la lectura al cerrar, y solo si hubo pronóstico",
+  "La variable es <code>movio − pronosticado</code>. Negativo es sobreestimar, que es lo que predice el <i>impact bias</i>",
+  "Una operación con pronóstico y sin lectura no aporta un cero: aporta nada",
+  "Tres ángulos del mismo dibujo — 0°, 19°, 56° — porque el ángulo <b>es</b> la pregunta y es ordinal por construcción",
+  "No dice una palabra hasta los 30 pares completos"],
+  por:"<b>La versión obvia es la trampa:</b> preguntar “¿cómo te sentís?” al cerrar y guardar el nivel. Al cerrar, el estado está determinado por el resultado — se obtiene una serie que correlaciona con el PnL, se la rotula “emoción”, y es el error #4 otra vez, ahora con la coartada de que lo dijo él. El pronóstico previo es lo que la vuelve acción: se elige antes, se mide adherencia después, que es la forma de <code>edgeDeclarado</code> y del <b>ejercicio</b>.",
+  por2:"<b>La línea que desbloqueó el dibujo:</b> la salida varía la cara y mantiene el cuerpo derecho; la entrada varía el cuerpo y mantiene la cara igual. Las ocho expresiones de <code>CARAS</code> están tomadas por estados de salida, pero el ángulo del cuerpo no lo usa ninguno. Dos cosas que ese dibujo no puede hacer o el bloqueo vuelve: tomar el rojo de <code>PALETA.tilt</code> y animarse.",
+  no:"Prohibido y escrito antes de construir nada: <b>racha de check-ins</b> (el pre-check solo se contesta si vas a entrar, sería una racha que se alimenta operando), <b>score emocional agregado</b>, <b>rueda de emociones</b> —nunca va a haber N por celda— y <b>decir qué hacer con el estado</b>, que es timing con ropa de apoyo emocional."},
+]},
+
+{g:"Estados",n:"tilt · aire · muestra",items:[
+ {nm:"tilt",cp:"mot",des:5,fd:"racha ≥ 3 MÁS proceso roto, nunca solo por perder",
+  lead:"La pieza más importante. Cuando se activa, la pantalla entera se tiñe de rojo con intensidad proporcional a la racha y los números de plata se difuminan.",
+  pts:["Se enciende con racha perdedora ≥ 3 <b>y</b> al menos un motivo de proceso en las últimas 6 operaciones",
+  "Motivos: una liquidación · una pérdida fuera de tu límite (el techo declarado, o 1,5× tu promedio) · una entrada por encima de 2× tu tamaño · 3 o más entradas a menos de cinco minutos de cerrar la anterior",
+  "Se sale con <b>dos operaciones limpias</b>, donde limpia es conducta: una perdedora dentro de la banda cuenta, una ganadora al doble del tamaño no",
+  "Aparece la especificación de la próxima operación y un botón para destapar los números a mano",
+  "Cancela el ejercicio en curso"],
+  por:"<b>Y se sale descansando.</b> Durante mucho tiempo <code>tilt</code> no recibía el tiempo: se calculaba sobre las últimas seis operaciones sin mirar cuándo habían pasado, así que tres pérdidas del viernes a la noche dejaban la pantalla roja el lunes a la mañana. Como la única salida eran dos limpias, la app terminaba diciendo sin decirlo que había que operar para zafar — el contador de redención que este proyecto prohíbe, colado por la puerta de atrás. Ahora se apaga con día nuevo de Buenos Aires <b>más</b> un hueco de 6 h. Las dos condiciones juntas: perder tres a las 23:50 no puede quedar limpio a las 00:10, y una siesta tampoco es empezar de nuevo."},
+
+ {nm:"aire",cp:"mot",des:30,fd:"el espejo del tilt: proceso intacto, sin mirar el resultado",
+  lead:"Salió de una idea suya: si el setup es EV+, el resultado de <i>esta</i> operación no informa nada; lo que informa es que se está sosteniendo el sistema. Difumina la plata igual que el tilt, por el motivo opuesto — no se tapa porque no puedas mirarla, se tapa porque no dice nada.",
+  pts:["Ventana con tolerancia: <b>28 de las últimas 30</b>, y la última tiene que estar limpia",
+  "Cuatro fallas medibles: <b>regla</b> (pérdida fuera del límite de <code>bandaRiesgo</code>, liquidación, tamaño fuera de [0,5× 2×]) · <b>ráfaga</b> (día por encima de 2,5× tu mediana diaria) · <b>parálisis</b> (hueco mayor a 8× tu hueco típico, medido como <b>tiempo sin ninguna posición abierta</b>) · <b>salto</b> (tamaño fuera de [0,4× 2,5×] contra las diez anteriores)",
+  "<b>Estabilidad:</b> mediana de tamaño y de espera después de perder contra después de ganar. Si alguna razón se sale de la banda, no enciende.",
+  "Puede encenderse en el medio de una racha perdedora — de hecho ahí es cuando sirve",
+  "El tilt manda: si está activo, el aire no enciende"],
+  por:"La parálisis cuenta como falla de la ventana pero queda <b>fuera</b> del candado de “la última tiene que estar limpia”. Antes, volver de un parón marcaba parálisis y apagaba el aire, pero no apagaba el tilt: descansar te sacaba lo bueno y te dejaba lo malo.",
+  no:"La quinta falla que él nombra —“no mantener la calma”— queda sin medir a propósito. El proxy obvio serían las reentradas calientes, y sus propios datos ya las descartaron: rendían +US$0,21 por operación <b>mejor</b> que el resto y aguantaban el split-half. Inventar una falla que sus números desmienten sería peor que no medirla."},
+
+ {nm:"muestra",cp:"mot",des:null,fd:"el aviso de arranque, debajo de 5 operaciones",
+  lead:"Un panel arriba de todo que explica por qué media app está apagada, con el umbral de cada pieza.",
+  pts:["Hábitos desde 3 · Presupuesto desde 8 · Rachas desde 10 · Mitades desde 10 · Adherencia desde 24 · Estadística desde 30",
+  "Cierra diciendo qué sí sirve desde la primera: el tamaño de la posición y la distancia al stop contra la distancia a la liquidación"],
+  por:"Sin barra de progreso y sin “te faltan N”. Eso convertiría operar en un trámite para desbloquear pantallas."},
+]},
+
+{g:"Riesgo en vivo",n:"lo único que no necesita historial",items:[
+ {nm:"analyzePositions",cp:"mot",des:null,fd:"¿tu stop entra antes que el del exchange?",
+  lead:"Cruza lo que tenés abierto contra las órdenes trigger vigentes. Responde una sola pregunta.",
+  pts:["Para un long el stop está por debajo del mark y el take profit por encima; se ordena por cercanía",
+  "<span class='tag off'>sin stop</span> — la única salida definida es la liquidación",
+  "<span class='tag off'>invertido</span> — tu stop está más lejos que la liquidación: manda el exchange",
+  "<span class='tag mid'>apretado</span> — stop a más de 0,6× la distancia a la liquidación",
+  "<span class='tag on'>holgado</span> — 0,6× o menos",
+  "Con take profit cargado calcula además el ratio contra el stop"]},
+
+ {nm:"registrarHolgura · holguraHist",cp:"dat",des:null,fd:"el único dato que no se recalcula",
+  lead:"La holgura —distancia al stop contra distancia a la liquidación— es la variable que él identificó como la real. <b>No se puede reconstruir del historial.</b>",
+  pts:["<code>userFillsByTime</code> no devuelve ni el stop cargado ni el apalancamiento de esa posición",
+  "Se anota en vivo cada vez que la app ve una posición abierta, atada al <code>trade.id</code>, igual que las notas",
+  "Se guarda <b>el peor momento de la vida de la posición</b>, no el último: si el stop estuvo más lejos que la liquidación en algún momento, eso pasó aunque después lo corrigieras",
+  "Una posición que estuvo sin stop no tiene ratio y no entra en la mediana, pero se cuenta aparte — que es lo que la hace grave",
+  "Deriva: mediana de las últimas 10 observadas contra las anteriores, desde 14 observaciones",
+  "<code>holguraHist</code> devuelve siempre la cobertura, para que ninguna conclusión salga sin ella al lado"],
+  por:"Suponer el apalancamiento no sería una aproximación: sería inventar justo el número que importa. Con US$3,42 de colateral y órdenes mínimas de US$10, el apalancamiento es la entrada y no una decisión de riesgo — la variable real es la holgura. Efecto lateral: la frase “en todas las liquidaciones la distancia al stop era mayor” dejó de decirse a ciegas. Ahora se dice sobre las observadas, con el conteo; sin observaciones no se dice.",
+  no:"Si se pierde, se pierde. Es el único dato de la app que no se recalcula."},
+
+ {nm:"buildDayPlan",cp:"mot",des:1,fd:"alertas de contexto ordenadas por gravedad",
+  lead:"Sesión actual, racha reciente, escalada de tamaño, liquidaciones, deriva de técnica y sobreoperación del día en curso.",
+  pts:["Fin de semana: aviso de que el subyacente no opera y cualquier precio es descubrimiento del perp, sin referencia",
+  "Deriva: pérdida promedio reciente por debajo de 0,7× la vieja es buena noticia; por encima de 1,3× es aviso de que el stop se está corriendo",
+  "Aguantar perdedoras: <code>durLoss / durWin</code> por encima de 1,3",
+  "Sobreoperación: hoy por encima de 2× tu mediana diaria",
+  "Reglas derivadas de sus propios datos: mejor instrumento, mejor franja, lado, horizonte — siempre con el conteo al lado",
+  "Orden fijo: <span class='tag off'>mal</span> → <span class='tag mid'>aviso</span> → <span class='tag on'>bien</span> → <span class='tag neu'>info</span>"]},
+]},
+
+{g:"Método o época",n:"lo que separa un hallazgo de un dato suelto",items:[
+ {nm:"mitades",cp:"mot",des:10,fd:"primera mitad contra segunda, por fecha",
+  lead:"El chequeo más barato para saber si lo que ves describe tu método o tu época.",
+  pts:["Compara n, expectativa, acierto y pérdida promedio de cada mitad, con las fechas de cada tramo"]},
+
+ {nm:"comparativas",cp:"mot",des:3,fd:"qué rindió cada contexto contra el resto",
+  lead:"Descriptivo: el promedio por operación de cada grupo y el de su complemento. Sin recomendaciones.",
+  pts:["Cortes: reentradas dentro de 30 min de una pérdida, entradas después de 2+ pérdidas seguidas, <b>más exposición que tu mediana</b>, cada sesión, cada tramo de la rueda, ventanas de evento, tesis, etiquetas, long, short, límite, duración",
+  "El corte de tamaño le pregunta a <code>escalaTamano</code> como el resto de la app, usa <b>mediana</b> y no promedio, y <b>la etiqueta dice sobre qué base cortó</b> — cambia qué significa la fila y no puede quedar implícito",
+  "Es el único corte con <b>tercer estado</b>: sin colateral de ese momento no hay exposición, así que esas operaciones salen del universo en vez de irse al “resto” por descarte",
+  "Cada corte pide n ≥ 3 y un complemento no vacío",
+  "<b>Épocas</b> (split-half) = la diferencia aparece en las dos mitades, con el mismo signo y ninguna en cero",
+  "<b>p</b> = test de permutación con Benjamini-Hochberg al 10% encima: hasta 2000 barajadas de las etiquetas por corte, y la corrección por haber mirado todos los cortes a la vez",
+  "La tabla lleva arriba <b>cuántos cortes se probaron y cuántos aguantan las dos cosas</b>. Sin ese aviso, la fila de arriba del ranking se lee como un descubrimiento"],
+  por:"<b>Los dos filtros miden cosas distintas y ninguno reemplaza al otro.</b> <code>estable</code> controla la <i>época</i>; el p controla la <i>multiplicidad</i>. Bajo hipótesis nula coincidir en signo pasa la mitad de las veces, así que con 30 cortes unos 15 pasaban por azar y <code>repertorio</code> levantaba el primero como un hallazgo. Un corte puede aguantar el split-half y ser ruido igual, y puede tener un p chiquito y describir solo una época.",
+  por2:"<b>Permutación y no un test t</b>, porque la distribución de PnL no es normal ni de cerca: cola larga por las liquidaciones, masa cerca de cero, muestras de 5 a 40 operaciones. Barajar no supone nada — construye la nula con sus propios datos. El RNG es <b>determinista y sembrado con el corte</b>: sin eso el mismo historial daría un p distinto en cada render. El p <b>nunca es cero</b> —<code>(1+extremos)/(1+B)</code>, Davison &amp; Hinkley— porque con B finito un cero afirmaría algo que no se midió. Y el cálculo <b>para en cuanto el p parcial pasa <code>q</code></b>, que lleva el costo de 76 ms a 13 sobre datos sin señal; el precio es que ese número es una cota, y la tabla muestra <code>&gt; 0,10</code> en vez de un decimal inventado.",
+  no:"<b>Lo que ningún p arregla:</b> la frase decía “lo que más te cambia el resultado”, que afirma causalidad sobre un corte observacional. Ahora dice “donde más se separan tus números”. El problema era de diseño y no de muestra. <b>Y falta el número que importa:</b> sobre la fixture sintética son 9 cortes y no sobrevive ninguno, que es lo esperable sin señal — cuántos sobreviven con sus 175 operaciones sale de abrir la app."},
+
+ {nm:"probRacha · rachasEsperadas",cp:"mot",des:10,fd:"programación dinámica exacta",
+  lead:"Probabilidad exacta de que aparezca al menos una racha de k pérdidas en n operaciones, dado tu propio acierto. Separa “me está yendo mal” de “esto tenía que pasar”.",
+  pts:["Tabla para k = 3, 5, 8 y 11 sobre 100 operaciones",
+  "<b>Racha larga típica</b> = el mayor k cuya probabilidad todavía llega al 50%",
+  "Los drawdowns largos son normales incluso haciendo todo bien, y acá va la probabilidad exacta al lado"],
+  por:"<b>Usa <code>lossRate</code> y no <code>1 − winRate</code>, y no son lo mismo.</b> El empate exacto tiene caja propia desde que se vio que contarlo como ganadora inflaba el acierto; tomar el complemento volvería a meter los empates adentro de las pérdidas. <code>probRacha</code> pregunta por la probabilidad de <i>perder</i>, no por la de no ganar."},
+]},
+
+{g:"Douglas",n:"lo que entró de Trading in the Zone",items:[
+ {nm:"marcarDeclaradas · edgeDeclarado",cp:"mot",des:null,fd:"decir la tesis antes, no después",
+  lead:"<code>tesis</code> y <code>tags</code> existían como etiqueta post-hoc, y una etiqueta puesta después de ver el resultado no dice por qué entraste: dice cómo te explicaste lo que pasó.",
+  pts:["La declaración vale para la próxima operación que abra después de escribirla, y solo dentro de las 4 horas — una tesis de hace tres días no explica la de hoy",
+  "Mide qué fracción salió de una tesis previa y compara su resultado contra el resto",
+  "No compara con menos de 5 de cada lado: describiría dos operaciones, no un método"],
+  por2:"<b>Las que se vencen sin ejecutarse ya no se borran (4.2).</b> El shell las filtraba con el comentario “no se acumula historia muerta”, y estaba al revés: una declaración vencida es el único registro observable de un setup que vio y no tomó — los fills no la traen, porque una operación que no hiciste no deja fill. <b>El código estaba tirando exactamente el dato que mediría hesitación.</b> Se marcan, se guardan, y no se dice nada hasta las 30 cerradas: no ejecutar puede ser disciplina y no hesitación, y separarlas necesita ver dónde caen.",
+  no:"La app no opina sobre el <b>contenido</b> de la tesis. Que “reversión en el cierre” sea buena o mala idea no es asunto suyo — eso sería prescripción de mercado. Lo único que mide es si lo dijiste antes y si lo respetaste."},
+
+ {nm:"ejercicio",cp:"mot",des:3,fd:"N operaciones con reglas mecánicas, elegidas en frío",
+  lead:"Elegís un subconjunto de las conductas medibles y las ejecutás 10, 20, 30 o 50 veces sin desviarte. El objetivo declarado no es ganar plata: es instalar la creencia de que podés sostener un sistema.",
+  pts:["El veredicto es de conducta: dice cuántas de N salieron enteras. Sin aprobado ni desaprobado.",
+  "Una serie de veinte perdedoras ejecutadas al pie de la letra es un ejercicio perfecto",
+  "Si la declaración pide una regla que la app no sabe leer, se ignora — nunca se juzga contra algo que no puede medir",
+  "<b>Pero lo dice.</b> Devuelve <code>ignoradas</code>, porque al borrar el hábito <code>corte</code> una serie declarada con él habría pasado a juzgarse con menos reglas, o habría desaparecido, sin que él tocara nada",
+  "El tilt la cancela. Descansar, no."],
+  por:"<b>Rompe a propósito la regla de “nada de contadores”.</b> La distinción que lo habilita es cuál es la meta y quién arranca: un contador de redención te encuentra adentro de un estado malo y te ofrece salir operando, y eso reproduce el pensamiento del tilt. Un contador de práctica lo arrancás vos, en frío, y apunta a una habilidad. El primero sigue prohibido; el segundo es todo el libro. Y lo que cancela la serie es haberte salido del sistema —el tilt no se enciende por perder— que es exactamente lo que Douglas cancelaría."},
+
+ {nm:"verdades",cp:"mot",des:20,fd:"las cinco afirmaciones, con tu número al lado",
+  lead:"Douglas las hace repetir como afirmación. Acá se dicen con el dato propio, que es la única forma en que esta app puede sostenerlas.",
+  pts:["“Cualquier cosa puede pasar” → tu mejor y tu peor operación, salidas del mismo sistema",
+  "“No necesitás saber qué va a pasar para ganar plata” → tu acierto y tu expectativa, y que la segunda no se deduce de la primera",
+  "“Ganancias y pérdidas se reparten al azar” → tu peor racha contra la racha típica con tu acierto",
+  "“Una ventaja es una probabilidad más alta, no una certeza” → cuánto vale la tuya cada cien operaciones. Con expectativa negativa cambia de texto y lo dice.",
+  "“Cada momento del mercado es único” → tu símbolo más operado y el rango de resultados que dio"],
+  por:"Sin muestra no se dicen. Una verdad sobre probabilidades afirmada con seis operaciones es una creencia disfrazada de dato."},
+]},
+
+{g:"Voz",n:"qué se dice y cuándo se calla",items:[
+ {nm:"taladro",cp:"mot",des:null,fd:"prioridad fija, silencio incluido",
+  lead:"No habla sin un número, habla poco, festeja antes de marcar, y después de una racha perdedora baja el tono.",
+  pts:["Orden: sin stop → stop invertido → tilt → hito → ejercicio → <b>aire</b> → racha → hábito roto → presupuesto corto → silencio",
+  "El riesgo abierto ahora es lo único que interrumpe siempre",
+  "Cada frase tiene un tiempo de silencio propio y se recuerda cuál ya se dijo",
+  "La ironía va <b>adentro</b> de la oración, nunca colgada atrás como remate",
+  "Callarse es una opción válida y frecuente"],
+  por:"El aire va antes que la racha porque es la misma racha contada por el otro lado: decir “3 seguidas contra un récord de 7” cuando las tres salieron con el tamaño y la banda correctos es medir el resultado justo donde no importa."},
+
+ {nm:"repertorio",cp:"mot",des:1,fd:"ideas para probar, en rotación",
+  lead:"Rota entre tres familias —probar, mirar, proceso— y refuerza lo que ya funciona con el número que lo demuestra.",
+  pts:["Traduce las etiquetas de tabla a castellano hablado antes de decirlas en voz alta",
+  "El índice de rotación se guarda, así que no repite la misma idea en cada render"]},
+
+ {nm:"buildInsights",cp:"mot",des:1,fd:"acción · resultado · aviso, en bloques separados",
+  lead:"Cada tarjeta viene rotulada con <code>clase</code>, y no es cosmético.",
+  pts:["<b>acción</b> — depende de vos y se repite: cuánto arriesgás, cuánto aguantás una perdedora, si cerrás vos o el exchange",
+  "<b>resultado</b> — el mismo PnL cortado de varias maneras",
+  "<b>aviso</b> — el tamaño de la muestra, que enmarca todo lo demás"],
+  por:"Los cortes de PnL no se borraron —un símbolo que resta plata es un hecho— pero dejaron de estar mezclados con las conductas como si pesaran igual. Poner “tu horizonte rentable” al lado de “aguantás las perdedoras” hacía que las dos cosas pesaran igual, y no pesan igual: una la elegís cada vez, la otra es una lectura de treinta muestras que la próxima racha da vuelta."},
+
+ {nm:"explica",cp:"mot",des:null,fd:"cada número se explica solo",
+  lead:"Convierte un dato en la oración que lo hace legible, para que ninguna métrica quede como una sigla suelta.",
+  pts:["Se usa en los KPI y en las tarjetas, con el mismo texto en los dos lados"]},
+]},
+
+{g:"Vista",n:"shell.html",items:[
+ {nm:"Tema claro y oscuro",cp:"vis",des:null,fd:"variables con nombre de rol",
+  lead:"Todo el color sale de variables con nombre de rol: <code>--txt2</code> es “texto secundario”, no “gris claro”. El tema claro es un solo bloque que cambia esos valores.",
+  pts:["Los rojos y verdes con alfa no se duplican: al ser translúcidos funcionan sobre los dos fondos",
+  "Chart.js copia los colores adentro del gráfico, así que <code>GRID()</code>, <code>TICK()</code>, <code>VERDE()</code> y <code>ROJO()</code> son funciones que leen la variable viva, y cambiar de tema llama a <code>render()</code> otra vez",
+  "Los dos temas dan contraste AA (≥ 4,5) para todo el texto sobre panel",
+  "El ícono muestra a dónde vas, no dónde estás"],
+  por:"<b>El taladro no cambia de color con el tema.</b> Tiene paleta propia y es siempre la misma: es un personaje, no una pieza de la interfaz. Lo que cambia es <code>--talbg</code>, el gris oscuro sobre el que se para. Se probó darle una versión clara y quedó peor: la mecha y las partes metálicas son casi blancas, y sobre blanco el dibujo pierde la punta."},
+
+ {nm:"En vivo",cp:"vis",des:null,fd:"refresco cada 20 s · franja cada 1 s",
+  pts:["El botón <b>En vivo</b> vuelve a pedir fills, posiciones y órdenes cada 20 segundos",
+  "La franja de arriba se recalcula cada segundo aunque no haya datos nuevos, para que el tiempo en posición corra",
+  "Cada pasada registra la holgura de lo que esté abierto"]},
+
+ {nm:"Filtros y CSV",cp:"vis",des:null,fd:"dex, símbolo, lado, fechas · exportación literal",
+  pts:["Presets rápidos más filtros por dex, símbolo, lado y rango de fechas",
+  "El CSV sale con las horas de Buenos Aires, igual que todo lo que ve el usuario",
+  "Cargar JSON, guardar copia y vincular archivo para trabajar sin conexión"]},
+
+ {nm:"Gráficos",cp:"vis",des:1,fd:"siete vistas Chart.js",
+  pts:["PnL acumulado neto · valor de la cuenta · resultado por sesión, símbolo, hora de entrada y duración · distribución de resultados",
+  "El PnL acumulado va por <b>fecha de cierre</b> y no de apertura: el resultado se realiza al cerrar, y acumulando por apertura el eje quedaba no monótono y <code>maxDD</code> salía de una secuencia de saldos que nunca existió",
+  "El valor de la cuenta suma los dexes sobre la unión de sus instantes (<code>serieTotal</code>) y dice cuántos: antes dibujaba el colateral de un solo dex con rótulo de cuenta entera",
+  "Incluye depósitos y retiros: es lo que realmente tuviste, a diferencia del PnL acumulado"],
+  no:"El gráfico por día del mes se fue con <code>byDow</code>, que se acumulaba en <code>computeStats</code> y era estado muerto. <code>byHour</code> se quedó porque sí se dibuja, pero las decisiones horarias las sigue tomando <code>bySession</code>/<code>byTramo</code>."},
+]},
+
+{g:"Build",n:"dos fuentes, un solo archivo",items:[
+ {nm:"build.py",cp:"bld",des:null,fd:"junta, sella la versión y verifica",
+  lead:"<code>engine.js</code> (lógica, sin DOM) + <code>shell.html</code> (estilos, HTML, el SVG y el render) → <code>index.html</code>, que <b>no se edita nunca</b>.",
+  pts:["Corta si quedan marcas sin reemplazar",
+  "Corta si aparece una dirección <code>0x…</code> en el HTML",
+  "Corta si algún <code>&lt;script&gt;</code> no compila (<code>node --check</code>)",
+  "Corta si la página armada no renderiza",
+  "<b>Corta si al calendario de la Fed le quedan menos de 60 días.</b> El umbral es una sola constante: <code>build.py</code> parsea <code>FOMC_AVISO_DIAS</code> de <code>engine.js</code> con regex en vez de tener su propio 60",
+  "<b>Corta si falla una prueba de vista.</b> Corre <code>t/*.js</code> contra el bloque inline de la página recién armada, pasándole además el CSS y el HTML enteros",
+  "Recién si pasa todo escribe <code>index.html</code>; el borrador vive en el temporal, así que un build roto deja lo anterior intacto"],
+  por:"<b>Todas las compuertas son el mismo bug, un piso más arriba: el problema nunca fue el error, fue que el error salía como éxito.</b> El primero: el build recortaba <code>engine.js</code> en <code>module.exports</code>, pero eso vive adentro de un <code>if</code>, así que el corte se comía la llave de cierre y el script entero quedaba roto. Los tests pasaban —corren <code>engine.js</code> suelto— y el build informaba éxito publicando una página muerta. El segundo: <code>const ROJO = () =&gt; cssVar('--down', ROJO())</code>. Sintaxis impecable, <code>node --check</code> conforme, todos los tests en verde, y en el navegador <i>Maximum call stack size exceeded</i> en el primer render — que salía por pantalla como si fuera un error de la API de Hyperliquid. Revisar sintaxis no es revisar que ande. El tercero es el calendario: el 1 de enero de 2027 <code>ventanaEvento</code> habría devuelto <code>null</code> para siempre, las operaciones habrían dejado de marcarse con evento y <b>la app habría seguido andando como si nada</b>. El cuarto son las pruebas de vista, que leían un historial por ruta absoluta de una carpeta que dejó de existir: los seis morían antes de la primera aserción y nadie se enteraba, porque el build nunca las llamaba. Un test que no puede correr es peor que uno que no existe — ocupa el lugar de la verificación sin hacerla."},
+
+ {nm:"Pruebas",cp:"bld",des:null,fd:"299 del motor + humo + perfiles + vista",
+  pts:["<code>test.js</code> — <b>299 ok</b> sobre el motor suelto",
+  "<code>smoke.js</code> — corre la página armada entera contra un DOM de mentira: ingesta datos sintéticos, renderiza, filtra, cambia de tema y mira que no queden <code>NaN</code>",
+  "<code>perfiles.js</code> — operadores sintéticos con otros estilos: ¿el modo se enciende donde corresponde?",
+  "<code>t/*.js</code> — nueve pruebas de vista con el mismo stub, <b>corridas por el build</b>: <code>anclas</code>, <code>banda</code>, <code>boton</code>, <code>columnas</code>, <code>diag</code>, <code>presu</code>, <code>racha</code>, <code>tilt</code>, <code>vista</code>",
+  "La fixture se <b>genera</b>, no se guarda: un archivo con fechas fijas deja de encender el tilt, que tiene reloj"]},
+
+ {nm:"Publicar",cp:"bld",des:null,fd:"a mano, por la web de GitHub",
+  pts:["No hay automatización: se compila local y se sube <code>index.html</code> por <code>github.com/agroyffer/taladro/upload/main</code>",
+  "Después <code>Ctrl+Shift+R</code> y verificar el sello de versión abajo de todo",
+  "Al arrastrar desde Windows a veces sube el nombre corto de DOS (<code>SHELL~1.HTM</code>) y hay que renombrarlo en GitHub"],
+  no:"Pendiente: renombrar el repo a <code>talastrat</code>. GitHub redirige la URL vieja."},
+]},
+];
+
+/* ================= render del árbol ================= */
+const SCL={mot:["motor","engine.js — lógica pura, se testea en node"],
+           vis:["vista","shell.html — estilos, HTML, el SVG y el render"],
+           dat:["dato","persistencia o API: lo que entra y lo que sobrevive a la recarga"],
+           bld:["build","compilación, pruebas y publicación"]};
+const treeEl=document.getElementById("tree");
+/* Sin acentos: buscar "exposicion" tiene que encontrar "exposición". */
+const pl=s=>s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+let idx=[];
+treeEl.innerHTML=TREE.map((g,gi)=>{
+  const items=g.items.map((f,fi)=>{
+    idx.push({gi,fi,txt:pl(g.g+" "+f.nm+" "+f.fd+" "+(f.lead||"")+" "+(f.pts||[]).join(" ")+" "+(f.por||"")+" "+(f.por2||"")+" "+(f.no||""))});
+    const s=SCL[f.cp];
+    const des=f.des?`<span class="des" data-tip="Existe desde <b>${f.des}</b> operaciones cerradas. Debajo de ese número la pieza no se calcula.">≥${f.des}</span>`:"";
+    return `<div class="feat" data-g="${gi}" data-f="${fi}">
+      <span class="fn">${f.nm}</span><span class="fd">${f.fd}</span>
+      <span class="fm">${des}<span class="sc ${f.cp}" data-tip="${s[1]}">${s[0]}</span><span class="cnt">${(f.pts||[]).length}</span></span></div>`;
+  }).join("");
+  return `<section class="grp${gi<2?" open":""}" id="g${gi}">
+    <div class="gh" data-g="${gi}"><span class="car">${gi<2?"▾":"▸"}</span><span class="gt">${g.g}</span>
+    <span class="fd" style="color:var(--faint);font-size:11px">${g.n}</span><span class="gn">${g.items.length}</span></div>
+    <div class="gb">${items}</div></section>`;
+}).join("");
+
+treeEl.addEventListener("click",e=>{
+  const gh=e.target.closest(".gh");
+  if(gh){const s=gh.parentElement;const o=s.classList.toggle("open");
+    gh.querySelector(".car").textContent=o?"▾":"▸";return;}
+  const f=e.target.closest(".feat");if(!f)return;
+  document.querySelectorAll(".feat.sel").forEach(x=>x.classList.remove("sel"));
+  f.classList.add("sel");showFeat(+f.dataset.g,+f.dataset.f);
+});
+
+const det=document.getElementById("det");
+function showFeat(gi,fi){
+  const g=TREE[gi],f=g.items[fi],s=SCL[f.cp];
+  det.innerHTML=`<div class="kick">${g.g} · <span class="sc ${f.cp}">${s[0]}</span>${f.des?` · desde ${f.des} operaciones`:""}</div>
+  <h2>${f.nm}</h2><div class="lead">${f.lead||f.fd}</div>
+  ${(f.pts||[]).length?`<h3>Detalle</h3><ul>${f.pts.map(p=>`<li>${p}</li>`).join("")}</ul>`:""}
+  ${f.por?`<div class="por"><b>por qué funciona así</b>${f.por}</div>`:""}
+  ${f.por2?`<div class="por"><b>y lo segundo</b>${f.por2}</div>`:""}
+  ${f.no?`<div class="no"><b>lo que no hace / lo que falta</b>${f.no}</div>`:""}
+  <div class="hint">${g.items.length} pieza${g.items.length===1?"":"s"} en ${g.g}</div>`;
+  det.scrollTop=0;
+}
+function detHome(){
+  const n=idx.length,gn=TREE.length;
+  det.innerHTML=`<div class="kick">panorama</div><h2>${n} piezas en ${gn} áreas</h2>
+  <div class="lead">Todo lo que hace la app, agrupado por dónde vive, con el razonamiento detrás de lo que parece arbitrario. Casi todas las decisiones raras salieron de un error concreto.</div>
+  <h3>Cómo leerlo</h3><ul>
+  <li>Clic en cualquier fila para el detalle y, cuando existe, la nota <b>por qué funciona así</b> — casi siempre un bug o una corrección suya</li>
+  <li>La nota <b>lo que no hace</b> marca los límites declarados: piezas que a propósito no miden algo, o deuda todavía sin resolver</li>
+  <li>El chip <code>≥N</code> es desde cuántas operaciones cerradas existe la pieza. Media app está apagada al principio, y eso es una decisión.</li>
+  <li>El número de la derecha es cuántos puntos de detalle carga la pieza — un proxy grueso de cuánta maquinaria tiene atrás</li>
+  <li>Escribí en el filtro de arriba para buscar en nombres, descripciones y todos los puntos a la vez</li></ul>
+  <h3>Las otras pestañas</h3><ul>
+  <li><b>Estados</b> — tilt, aire y muestra lado a lado: qué los enciende, qué los apaga, qué tapan</li>
+  <li><b>Umbrales</b> — cada número duro del motor, de dónde salió y qué pasa si no se cumple</li>
+  <li><b>Reglas</b> — los ocho principios en orden de desempate, más la única restricción, y qué decisión de código aplica cada uno</li>
+  <li><b>Deuda</b> — lo que queda abierto de <code>PLAN.md</code>, con qué decisión falta tomar en cada uno</li></ul>
+  <div class="hint">todo lo que se ve punteado tiene su propia explicación al pasar el mouse</div>`;
+}
+detHome();
+
+/* ================= estados ================= */
+const EST=[
+ ["Qué mide",
+  "Racha perdedora <b>más</b> proceso roto.",
+  "Proceso intacto, sin mirar el resultado.",
+  "Que todavía no hay con qué medir.",
+  "El tilt no se enciende por perder. El aire no se apaga por perder. Son la misma indiferencia al resultado, aplicada en las dos direcciones."],
+ ["Muestra mínima",
+  "5 operaciones cerradas",
+  "30 operaciones cerradas",
+  "se muestra por debajo de 5",
+  "El aire pide 30 porque toda su indiferencia se apoya en la expectativa, y debajo de ahí la expectativa no distingue método de suerte."],
+ ["Se enciende con",
+  "racha ≥ 3 · al menos un motivo en las últimas 6 · menos de 2 limpias · sin descanso",
+  "28 de las últimas 30 sin falla · la última limpia · expectativa &gt; 0 · estabilidad adentro de banda · tilt apagado",
+  "menos de 5 operaciones cerradas en el período filtrado",
+  "El aire es ventana con tolerancia, no racha perfecta. Pedir treinta seguidas haría que un resbalón apague todo y convertiría el número en un contador hacia un premio."],
+ ["Se apaga con",
+  "2 operaciones limpias <b>o</b> día nuevo de Buenos Aires + 6 h de hueco",
+  "una falla ahora mismo (salvo parálisis), expectativa negativa, o inestabilidad",
+  "la quinta operación cerrada",
+  "Descansar es salida válida de los dos estados malos. Si la única salida fuera operar, la app estaría diciendo “operá para zafar”, que es el pensamiento del tilt con otro nombre."],
+ ["Qué le hace a la pantalla",
+  "la tiñe de rojo con intensidad proporcional a la racha y difumina los números de plata",
+  "difumina los números de plata igual, y deja la expectativa a la vista",
+  "pone un panel arriba de todo y lista qué pieza se calcula desde qué número",
+  "El tilt tapa la plata porque mirarla ahí empeora la decisión. El aire la tapa porque no dice nada. Motivo opuesto, mismo gesto. Los dos tienen botón para destapar a mano."],
+ ["Qué no hace nunca",
+  "no muestra “te faltan 2 limpias y se termina”",
+  "no promete que operar más te salva",
+  "no muestra barra de progreso ni “te faltan N”",
+  "Los contadores hacia la redención convierten la salida en un premio y reproducen el pensamiento del tilt. El contador de práctica del <b>ejercicio</b> es la única excepción, y la habilita que lo arrancás vos en frío."],
+ ["Prioridad",
+  "manda sobre todo salvo el riesgo abierto ahora",
+  "cede ante el tilt · va antes que la racha en la voz",
+  "va arriba de todo lo demás",
+  "El aire va antes que la racha porque es la misma racha contada por el otro lado."]];
+
+document.getElementById("est").innerHTML=`<div class="tw">
+<p class="intro">Los dos modos son espejos exactos, y la simetría no es estética: cada asimetría que apareció entre ellos fue un bug. Que descansar apagara uno y no el otro fue el último.</p>
+<table><thead><tr><th style="width:150px"></th><th style="width:24%">Tilt</th><th style="width:24%">Aire</th><th style="width:22%">Muestra</th><th>Por qué</th></tr></thead><tbody>
+${EST.map(r=>`<tr><td class="k">${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td class="n">${r[3]}</td><td class="n"><span class="hint2">${r[4]}</span></td></tr>`).join("")}
+</tbody></table></div>`;
+
+/* ================= umbrales ================= */
+const UMB=[
+["tilt","racha mínima","3 pérdidas seguidas","de él: la racha sola nunca alcanza, pide un motivo de proceso al lado","con 2 no enciende, aunque haya motivos"],
+["tilt","ventana de motivos","últimas 6 operaciones","",""],
+["banda","<code>BANDA_TOL</code>","1,5 × el promedio observado","<b>solo cuando no declaraste un techo.</b> Un promedio necesita tolerancia; un techo elegido no, porque el número ya es el borde","con techo declarado el múltiplo es 1,0 y el número que escribiste es el que se mide"],
+["banda","cambio de definición","en la operación 24, <b>solo si no declaraste</b>","<code>adherence</code> devuelve null debajo de 24 y el fallback es el promedio de <i>todas</i> las pérdidas; desde 24 pasa a las últimas 20","con un techo declarado el número no cambia nunca solo, que es todo el punto"],
+["banda","aviso de deriva","tu promedio observado > el techo declarado","el único corte es 1,0, o sea la definición misma del techo","no hay umbral de “deriva grande”: eso pediría inventar cuánto es demasiado"],
+["tilt","entradas rápidas","3 o más a menos de 5 min","",""],
+["tilt","salida por conducta","2 limpias","",""],
+["tilt","<code>TILT_HUECO_MIN</code>","6 h <b>y</b> día nuevo de BA","las dos juntas: perder tres a las 23:50 no puede quedar limpio a las 00:10, y una siesta no es empezar de nuevo","con una sola de las dos no caduca"],
+["aire","<code>AIRE_VENT</code>","30 operaciones","",""],
+["aire","<code>AIRE_FALLAS</code>","2 permitidas en 30","tolerancia, no perfección — un resbalón no puede apagar todo","3 fallas lo apagan"],
+["aire","<code>AIRE_MIN</code>","30 operaciones","debajo de ahí la expectativa no distingue método de suerte","no enciende"],
+["aire","expectativa","estrictamente &gt; 0","con EV negativo, más operaciones es más pérdida acumulada","no enciende, sin excepción"],
+["aire","techo de ráfaga","máx(3 · 2,5 × tu mediana diaria)","sale de su propia historia, no de una tabla",""],
+["aire","techo de hueco","máx(8 × tu hueco típico · 5 días)","el hueco típico pide al menos 10 huecos, y sale de <code>huecosSinPosicion</code>: tiempo sin <b>ninguna</b> posición abierta","una que abre mientras ya había otra corriendo no tiene hueco delante, y no se juzga por parálisis"],
+["trades","orden canónico","por cierre, desempate por apertura","la racha la dispara enterarte, no haber abierto; con perps en paralelo los dos órdenes difieren","sin el desempate, dos cierres simultáneos cambian las rachas entre recargas"],
+["aire","salto de tamaño","fuera de [0,4× · 2,5×] contra las 10 anteriores","",""],
+["aire","estabilidad <code>rTam</code> / <code>rEsp</code>","razón fuera de [0,71 · 1,40]","mediana después de perder ÷ mediana después de ganar","cualquiera de las dos fuera lo apaga"],
+["aire","mínimo por lado","5 después de perder y 5 después de ganar","con menos describiría dos operaciones, no una conducta","no se juzga la estabilidad"],
+["habitos","muestra mínima","3 operaciones","",""],
+["habitos","ventana de conteo","últimas 20","se dice “3 de tus últimas 20”, nunca un porcentaje",""],
+["habitos","tamaño consistente","[0,5× · 2×] de tu mediana","sobre exposición si hay serie de cuenta",""],
+["habitos","pérdida contenida","el techo declarado, o 1,5× el promedio observado","<code>bandaRiesgo</code>: una sola definición, y el múltiplo vive adentro","el ×1,5 existe porque un promedio necesita tolerancia; un techo elegido no"],
+["habitos","metas de racha","3 · 5 · 10 · 20 · 50 · 100 · 250","",""],
+["presupuesto","muestra mínima","8 operaciones","",""],
+["presupuesto","holgura observada","5 posiciones con stop","el mismo umbral que ya usaba la tarjeta de holgura en <code>buildInsights</code>, no uno nuevo","la pieza se apaga y dice cuántas faltan"],
+["presupuesto","ventana","últimas 5","con 10 la barra no reaccionaba y parecía rota","—"],
+["presupuesto","estados","&lt;0,6 corto · &gt;1,5 pasado","",""],
+["escala","<code>EXP_COBERTURA_MIN</code>","0,8 de cobertura","<b>verificado el 3/8: cobertura real 99%.</b> El umbral no está ni cerca de morder, así que quedó donde estaba","por debajo cae a notional crudo y lo dice"],
+["escala","<code>EQ_COLA</code>","7 días pasado el último punto","elegido a ojo, y la medición del 3/8 no lo tocó","más allá, <code>equityEn</code> devuelve null antes que extrapolar"],
+["escala","distancia al punto real","sin umbral, a propósito","<code>gapEn</code> la mide: mediana 44 min, peor caso 10,1 h. El instrumento existe y el número dio bien","poner un corte ahora sería un “a ojo” nuevo para un problema que la medición dice que no está"],
+["holgura","<code>HOLG_APRETADA</code>","0,6","el mismo umbral con el que <code>analyzePositions</code> ya avisa en vivo",""],
+["holgura","deriva","desde 14 observadas · últimas 10 vs anteriores","mismo criterio que <code>adherence</code>",""],
+["adherencia","ventana","20 recientes + 4 de base","",""],
+["adherenciaDiaria","<code>DIAS_MIN</code>","8 días operados en total","y además 3 de cada lado del corte para comparar","con menos, <code>corte</code> queda en null y no se dice nada"],
+["comparativas","corte mínimo","n ≥ 3 y complemento no vacío","",""],
+["comparativas","corte de tamaño","mediana de <code>escalaTamano</code>","mediana y no promedio: no la arrastra una operación enorme","las que no tienen colateral de ese momento salen del universo, no del lado que sobra"],
+["comparativas","épocas (split-half)","mismo signo en las dos mitades, ninguna en cero","controla la época, no la multiplicidad","bajo hipótesis nula coincide el signo la mitad de las veces"],
+["comparativas","<code>PERM_B</code>","2000 barajadas por corte","el piso del p es 1/2001, y por eso nunca da cero","con parada temprana, los que no van a sobrevivir cortan en 200"],
+["comparativas","<code>BH_Q</code>","10% de falsos descubrimientos","Benjamini-Hochberg, no Bonferroni: con 30 cortes y esta muestra, “ningún falso positivo” es imposible","de lo que se afirme, a lo sumo el 10% es ruido"],
+["comparativas","semilla del sorteo","<code>label|n|universo</code>","determinista a propósito: sin esto un corte entra y sale del ranking solo entre renders",""],
+["declaración","vigencia","4 horas antes de la entrada","una tesis de hace tres días no explica la de hoy",""],
+["declaración","<code>DECL_MUESTRA</code>","30 cerradas","antes de eso el panel dice que es solo el conteo","no se interpreta nada: podría ser disciplina y no hesitación"],
+["franjas","<code>ADH_CELDA_MIN</code>","5 juicios medibles","debajo de eso <code>pct</code> es <code>null</code> y no 0","la celda dice <i>sin muestra</i> — gris y no rojo"],
+["franjas","celdas","10: cinco sesiones + cinco tramos","<code>PLAN.md</code> decía nueve y no contaba <code>finde</code>","la rueda no es celda propia o se contaría dos veces"],
+["chequeo","<code>CHEQ_MUESTRA</code>","30 pares completos","el par necesita pronóstico <i>y</i> lectura","con pronóstico y sin lectura no hay par: no aporta un cero, aporta nada"],
+["chequeo","ángulos","0° · 19° · 56°","el ángulo <b>es</b> la pregunta, y es ordinal por construcción","si los tres quedan iguales la escala muere sin error"],
+["declaración","comparable","5 declaradas y 5 no declaradas","",""],
+["ejercicio","<code>EJ_N</code>","10 · 20 · 30 · 50","",""],
+["verdades","muestra mínima","20 operaciones","una verdad sobre probabilidades con seis operaciones es una creencia disfrazada de dato",""],
+["muestra","<code>MUESTRA_MIN</code>","5 operaciones cerradas","",""],
+["dayPlan","escalada de tamaño","tras pérdida ÷ tras ganancia &gt; 1,25","",""],
+["dayPlan","deriva de técnica","&lt;0,7× buena · &gt;1,3× aviso","compara tu pérdida promedio reciente contra la vieja; es otra cosa que la deriva del techo declarado",""],
+["dayPlan","aguantar perdedoras","duración perdedora ÷ ganadora &gt; 1,3","",""],
+["dayPlan","sobreoperación de hoy","&gt; 2 × tu mediana diaria","distinto del techo del aire, que usa 2,5×","dos umbrales para lo mismo, sin unificar"],
+["vivo","refresco","20 s · franja cada 1 s","<code>renderFranja</code> reusa lo último calculado: antes corría <code>computeStats</code> entero una vez por segundo",""],
+["build","<code>FOMC_AVISO_DIAS</code>","60 días de margen","<b>una sola constante leída por los dos:</b> <code>build.py</code> la parsea de <code>engine.js</code>","el build corta antes de escribir <code>index.html</code>, y la app lo dice en Diagnóstico"]];
+
+document.getElementById("umb").innerHTML=`<div class="tw">
+<p class="intro">Cada número duro del motor. La columna <b>de dónde salió</b> está vacía cuando el umbral es una elección de diseño sin historia particular; cuando dice algo, casi siempre viene de un error corregido o de sus propios datos. Los umbrales de conducta se miden contra <i>su</i> historia, no contra una tabla externa.</p>
+<table><thead><tr><th style="width:110px">Pieza</th><th style="width:180px">Umbral</th><th style="width:190px">Valor</th><th style="width:28%">De dónde salió</th><th>Qué pasa si no se cumple</th></tr></thead><tbody>
+${UMB.map(r=>`<tr><td class="k">${r[0]}</td><td>${r[1]}</td><td class="v">${r[2]}</td><td class="n"><span class="hint2">${r[3]||"—"}</span></td><td class="n"><span class="hint2">${r[4]||"—"}</span></td></tr>`).join("")}
+</tbody></table>
+<h3>Las dos que no cerraban, cerradas</h3>
+<table><thead><tr><th style="width:220px">Dónde</th><th style="width:30%">Decía</th><th>Cómo se resolvió</th></tr></thead><tbody>
+<tr><td class="k">estabilidad del aire</td><td>“adentro de ±40%”</td><td>El código pide <code>r &lt;= 1.4 &amp;&amp; r &gt;= 1/1.4</code>, o sea <b>[0,71 · 1,40]</b>: el lado bajo es −28,6% y no −40%. <b>La banda está bien y la descripción estaba mal</b> — es simétrica en escala logarítmica, que es lo correcto para una razón, porque la mitad y el doble tienen que estar a la misma distancia de 1. <code>docs/motor.md</code> ahora dice la banda y no el porcentaje.</td></tr>
+<tr><td class="k">pruebas</td><td>“154 tests del motor”</td><td>Los documentos dejaron de escribir el número. Un conteo copiado a mano envejece en el commit siguiente y no hay nada que avise; el que manda es <code>node _build/test.js</code>.</td></tr>
+</tbody></table></div>`;
+
+/* ================= reglas ================= */
+const REG=[
+["1 · No inventar la variable","Si el dato no está, no se aproxima con un proxy.",
+ "Es la condición de posibilidad de las demás: medir bien una variable falsa sigue siendo medir mal. <code>escalaTamano</code> y <code>bandaRiesgo</code> dicen sobre qué base calcularon. <code>holguraHist</code> devuelve siempre la cobertura. La holgura se anota en vivo porque no se puede reconstruir del historial, y suponer el apalancamiento sería inventar justo el número que importa."],
+["2 · Un dato aislado no es un hallazgo","Split-half y tamaño de muestra al lado, siempre.",
+ "<code>mitades</code> parte la muestra por fecha. <code>comparativas</code> exige que la diferencia aparezca en las dos mitades con el mismo signo. <code>adherenciaDiaria</code> pide 8 días operados, 3 por lado y el split-half. El aire pide 30 operaciones. <b>Coincidir en signo con diferencia cero no es un patrón</b> — y esa guarda, siendo correcta, está prácticamente vacía con PnL en punto flotante."],
+["3 · Se miden acciones, no resultados","Ningún hábito, barra ni felicitación se calcula sobre el PnL.",
+ "Los cuatro hábitos son tests de conducta puros. El veredicto del ejercicio cuenta cumplidas, no ganadas. <code>buildInsights</code> separa <b>acción</b> de <b>resultado</b> en dos bloques con título. <b>Si una métrica se mueve sola con el colateral, está midiendo el PnL con otro nombre</b>: por eso el tamaño se mide sobre exposición y no sobre notional."],
+["4 · Prescribe proceso, nunca mercado","Puede pedirte que definas tu setup; no sugiere activos ni dirección ni cuándo entrar.",
+ "<code>comparativas</code> devuelve el promedio de cada grupo y el de su complemento, sin recomendación. La app no opina sobre el contenido de una tesis. Los tramos de la rueda son momentos para prestar atención, jamás señales. Mató el empujón horario, que era una señal de timing con ropa de apoyo emocional."],
+["5 · Nada que se alivie operando","La app no puede crear un malestar cuya salida sea entrar al mercado.",
+ "Prohíbe “te faltan 2 limpias” y “llevás 4 días sin operar”. El tilt caduca con día nuevo de BA más 6 h de hueco, así que <b>descansar siempre es salida válida</b>. <b>Pero medir no es empujar:</b> la app puede saber que hay un hueco abierto y mostrarlo en frío en el panel al que él va a buscarlo."],
+["6 · Se refuerza con el tiempo","Solo caduca el estado; jamás la acumulación.",
+ "Las rachas de hábitos atraviesan los días. Se reinicia el ánimo, nunca lo acumulado. Descansar no cancela el ejercicio: la única forma de perder la serie es salirse del sistema operando."],
+["7 · Cuidar sin joder, alentar sin forzar","Nada de relleno ni autoayuda.",
+ "<code>taladro</code> no habla sin un número y el silencio es una salida legítima de la cadena de prioridad. La ironía va adentro de la oración, nunca colgada atrás como remate. Es la única regla cuya evidencia es su reacción y no un número."],
+["8 · Evitar el autocastigo","Los drawdowns largos son normales incluso haciendo todo bien.",
+ "<code>probRacha</code> pone la probabilidad exacta al lado de la racha, con programación dinámica y sobre <code>lossRate</code>. Las <b>verdades</b> dicen cada afirmación con el número propio. Nada en la dirección de callarlo; sí la dosis, porque dicho de más se vuelve consuelo automático y viola la 7."],
+["RESTRICCIÓN · Nunca pide clave privada","No opera, no mueve fondos, todo en el navegador.",
+ "Es la única, y no se cambia: si cae, lo que queda es otro producto. Todo se procesa contra la API pública y el build corta si aparece una dirección <code>0x…</code> en el HTML generado."]];
+
+document.getElementById("reg").innerHTML=`<div class="tw">
+<p class="intro"><b>Ocho principios y una restricción, y el orden es la regla cuando dos chocan.</b> Cualquier propuesta se pasa por acá de arriba hacia abajo. Varios se ganaron corrigiéndome: si algo nuevo no pasa por esta lista, no entra. Cada uno lleva escrito en CLAUDE.md qué evidencia lo cambiaría — un principio sin falsador es una preferencia con buena prensa.</p>
+<table><thead><tr><th style="width:26%">Principio</th><th style="width:26%">Qué dice</th><th>Dónde vive en el código</th></tr></thead><tbody>
+${REG.map(r=>`<tr><td class="k">${r[0]}</td><td class="n">${r[1]}</td><td>${r[2]}</td></tr>`).join("")}
+</tbody></table>
+<h3>Los cuatro errores que las produjeron</h3>
+<table><thead><tr><th style="width:34%">Afirmé</th><th>Y era</th></tr></thead><tbody>
+<tr><td class="neg">No había liquidaciones</td><td>Estaban en el campo <code>liquidation</code>, no en <code>dir</code>. La hipótesis era correcta; el lugar, no.</td></tr>
+<tr><td class="neg">Las reentradas calientes son una fuga</td><td>Sus datos daban <b>+US$0,21 por operación mejor</b> que el resto, y aguantaba el split-half. Por eso “no mantener la calma” quedó sin medir.</td></tr>
+<tr><td class="neg">El apalancamiento nunca se gana</td><td>Con US$3,42 de colateral y órdenes mínimas de US$10, el apalancamiento es la entrada, no una decisión de riesgo. La variable real es la <b>holgura</b>.</td></tr>
+<tr><td class="neg">“Tamaño consistente” se mide sobre notional</td><td>Él lo vio primero: con apalancamiento fijo el notional es colateral × 20, así que sube y baja solo con el PnL. Era el resultado disfrazado de acción — el mismo error que el anterior, en otra métrica. La variable es la <b>exposición</b>.</td></tr>
+</tbody></table></div>`;
+
+/* ================= deuda ================= */
+const DEU=[
+/* Espejo de PLAN.md, no una segunda lista. PLAN.md es la fuente: si las dos se separan,
+   manda PLAN.md. Acá está lo que queda abierto de los lotes 3 y 4, con el mismo id. */
+["3.3 · <code>presupuesto</code> es casi una tautología","alta","<code>habilitado = banda ÷ (stopTípico/100)</code>, y <code>stopTípico</code> es la mediana de <code>|net| / notional</code> de las perdedoras. Si la pérdida relativa fuera constante, el habilitado sería el notional promedio <b>por construcción</b>.","La barra puede mostrarte “corto” simplemente porque perdiste. <b>3.1 cortó una punta</b> —la banda ya no sale del PnL si declaraste un techo— pero la tautología necesitaba las dos, así que sigue viva por el lado del stop.","Sacar <code>stopTípico</code> de <code>DATOS.holguras</code>, lo que la app vio en vivo, y apagar la pieza con menos de 5 observaciones. O dejar el cálculo y renombrar la tarjeta a lo que de verdad compara: peor producto, mejor epistemología."],
+["4.2 · La regla de pagarse","media","Bloqueada, pero por un motivo mejor que “falta el endpoint”: el endpoint está y responde.","<b>Mirado el 3/8: no hay un solo retiro.</b> Cuatro movimientos, todos hacia adentro o entre dexes propios. No se puede medir adherencia a una regla de retiro contra cero retiros, y no se sabe qué <code>delta.type</code> trae uno porque nunca pasó.","Se destraba solo con un primer retiro real. Trampa anotada de antemano: <b><code>send</code> no es un retiro</b> — con <code>user == destination</code> es un traslado interno entre márgenes HIP-3. Prohibido cualquier contador tipo “llevás US$X guardados”: eso es PnL con moño."],
+["Canal de feedback para los testers","abierta","No existe.","Los compañeros de UTN y los amigos que prueban la app no tienen dónde escribir.","Es un pendiente de producto, no de código. No compite con nada de esta lista."],
+["Renombrar el repo a <code>talastrat</code>","abierta","Sigue siendo <code>agroyffer/taladro</code>.","GitHub redirige la URL vieja, así que no rompe nada.","Cuando quieras."]];
+const PRI={alta:"off",media:"mid",baja:"neu",abierta:"neu",descartada:"neu"};
+
+document.getElementById("deu").innerHTML=`<div class="tw">
+<p class="intro"><b>Espejo de <code>PLAN.md</code>, que es la fuente: si las dos se separan, manda PLAN.md.</b> Los lotes 1, 2 y 5 están cerrados y no figuran acá — una lista de deuda solo debe encoger. Casi nada de lo que queda es un bug: son decisiones que todavía no se tomaron, y el orden sale de qué principio viola cada una, no de cuánto cuesta arreglarla. <b>El único camino largo es 4.4 → 4.5 → 4.6</b>, y no es negociable: sin la variable no hay mapa, y sin mapa el PVT no tiene dónde dibujarse.</p>
+<table><thead><tr><th style="width:22%">Punto</th><th style="width:80px">Peso</th><th style="width:24%">Qué es</th><th style="width:26%">Por qué importa</th><th>Qué falta decidir</th></tr></thead><tbody>
+${DEU.map(r=>`<tr><td class="k">${r[0]}</td><td><span class="tag ${PRI[r[1]]}">${r[1]}</span></td><td class="n">${r[2]}</td><td class="n">${r[3]}</td><td>${r[4]}</td></tr>`).join("")}
+</tbody></table></div>`;
+
+/* ================= navegación y filtro ================= */
+const nav=document.getElementById("nav");
+nav.addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  nav.querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));
+  document.querySelectorAll(".pane").forEach(p=>p.classList.toggle("on",p.dataset.p===b.dataset.p));
+  document.getElementById("body").scrollTop=0;
+});
+
+const q=document.getElementById("q");
+q.addEventListener("input",()=>{
+  const v=pl(q.value.trim());
+  const feats=treeEl.querySelectorAll(".feat");
+  if(!v){feats.forEach(f=>f.classList.remove("hide"));
+    treeEl.querySelectorAll(".grp").forEach(g=>g.classList.remove("hide"));return;}
+  const vivos={};
+  idx.forEach((it,i)=>{const hit=it.txt.includes(v);feats[i].classList.toggle("hide",!hit);
+    if(hit)vivos[it.gi]=true;});
+  treeEl.querySelectorAll(".grp").forEach((g,gi)=>{
+    g.classList.toggle("hide",!vivos[gi]);
+    if(vivos[gi]&&!g.classList.contains("open")){g.classList.add("open");g.querySelector(".car").textContent="▾";}
+  });
+});
+document.addEventListener("keydown",e=>{
+  if(e.key==="/"&&document.activeElement!==q){e.preventDefault();q.focus();q.select();}
+  if(e.key==="Escape"&&document.activeElement===q){q.value="";q.dispatchEvent(new Event("input"));q.blur();}
+});
+</script>
+</body>
+</html>

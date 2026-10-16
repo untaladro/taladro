@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Probe BYMA — fase 0 del modo Merval</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --border:#2b3440;
+    --txt:#e6edf3; --dim:#8b949e; --accent:#58a6ff;
+    --ok:#3fb950; --warn:#d29922; --bad:#f85149;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+       font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+       font-size:15px;line-height:1.5;padding:26px 20px 70px}
+  .wrap{max-width:1060px;margin:0 auto}
+  h1{font-size:22px;margin:0 0 4px;font-weight:650}
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);
+     margin:30px 0 10px;font-weight:600}
+  .sub{color:var(--dim);font-size:13px;margin-bottom:20px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:15px 17px;margin-bottom:12px}
+  .banner{background:rgba(210,153,34,.12);border:1px solid var(--warn);
+          border-left:4px solid var(--warn);border-radius:6px;padding:13px 15px;margin-bottom:20px;font-size:13.5px}
+  .banner b{color:var(--warn)}
+  .crit{background:rgba(248,81,73,.10);border-color:var(--bad);border-left-color:var(--bad)}
+  .crit b{color:var(--bad)}
+  button{background:var(--accent);color:#04121f;border:0;border-radius:6px;
+         padding:9px 18px;font-size:14px;font-weight:650;cursor:pointer;font-family:inherit}
+  button:hover{filter:brightness(1.1)}
+  button:disabled{opacity:.45;cursor:default}
+  button.sec{background:var(--panel2);color:var(--txt);border:1px solid var(--border)}
+  input{background:var(--panel2);color:var(--txt);border:1px solid var(--border);
+        border-radius:6px;padding:8px 11px;font-size:14px;font-family:inherit;width:130px}
+  label{font-size:12px;color:var(--dim);margin-right:6px}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;color:var(--dim);font-weight:600;font-size:11px;text-transform:uppercase;
+     letter-spacing:.06em;padding:8px 9px;border-bottom:1px solid var(--border)}
+  td{padding:8px 9px;border-bottom:1px solid rgba(43,52,64,.6);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  .pill{display:inline-block;padding:2px 8px;border-radius:11px;font-size:10.5px;font-weight:650;
+        text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+  .p-ok{background:rgba(63,185,80,.14);color:var(--ok);border:1px solid rgba(63,185,80,.35)}
+  .p-bad{background:rgba(248,81,73,.16);color:var(--bad);border:1px solid rgba(248,81,73,.4)}
+  .p-warn{background:rgba(210,153,34,.14);color:var(--warn);border:1px solid rgba(210,153,34,.4)}
+  .p-na{background:rgba(139,148,158,.13);color:var(--dim);border:1px solid rgba(139,148,158,.3)}
+  code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px}
+  code{background:var(--panel2);padding:1px 5px;border-radius:4px}
+  pre{background:var(--panel2);border:1px solid var(--border);border-radius:6px;
+      padding:9px 11px;margin:5px 0 0;overflow-x:auto;white-space:pre-wrap;word-break:break-all;
+      max-height:170px;overflow-y:auto;color:var(--dim)}
+  .ok{color:var(--ok)} .bad{color:var(--bad)} .warn{color:var(--warn)} .dim{color:var(--dim)}
+  .note{font-size:12px;color:var(--dim);margin-top:6px}
+  .foot{margin-top:34px;padding-top:15px;border-top:1px solid var(--border);font-size:12px;color:var(--dim)}
+  .veredicto{font-size:16px;font-weight:650;margin:0 0 6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Probe BYMA — fase 0</h1>
+  <div class="sub">
+    Instrumento descartable. No es parte del modo Merval: existe para contestar tres preguntas y después se borra.
+    No guarda nada, no pide credenciales, no manda datos a ningún lado.
+  </div>
+
+  <div class="banner crit" id="origen">
+    <b>⚠ Importante: el resultado depende del origen desde el que abrís este archivo.</b>
+    <div class="note" style="color:var(--txt);margin-top:6px">Cargando origen…</div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <label for="tk">Ticker de prueba</label>
+      <input id="tk" value="GGAL" autocomplete="off">
+      <button id="go">Correr las tres pruebas</button>
+      <button id="clr" class="sec">Limpiar</button>
+    </div>
+    <div class="note">
+      Los paths de abajo son <b>candidatos</b> tomados de wrappers de la comunidad, no de documentación oficial.
+      Que uno falle con 404 no dice nada sobre CORS — dice que el path cambió. Lo que importa es distinguir
+      <span class="bad">bloqueo de CORS</span> de <span class="warn">path equivocado</span>.
+    </div>
+  </div>
+
+  <h2>Pregunta 1 — ¿El navegador puede llamar a BYMA?</h2>
+  <div class="card"><table><thead><tr>
+    <th style="width:34%">Endpoint candidato</th><th style="width:15%">Resultado</th><th>Detalle</th>
+  </tr></thead><tbody id="t1">
+    <tr><td colspan="3" class="dim">Sin correr.</td></tr>
+  </tbody></table></div>
+
+  <h2>Pregunta 2 — ¿La serie diaria viene ajustada?</h2>
+  <div class="card" id="c2">
+    <div class="dim">Sin correr.</div>
+  </div>
+
+  <h2>Pregunta 3 — ¿Está el par GD30 / GD30D para derivar el MEP?</h2>
+  <div class="card" id="c3">
+    <div class="dim">Sin correr.</div>
+  </div>
+
+  <h2>Veredicto</h2>
+  <div class="card" id="ver"><div class="dim">Sin correr.</div></div>
+
+  <div class="foot">
+    <b>Cómo se lee un fallo.</b> <code>TypeError: Failed to fetch</code> sin código de estado es, casi siempre,
+    CORS o red — el navegador ni te deja ver la respuesta. Un <code>404</code> o <code>400</code> significa que
+    <i>sí</i> hubo respuesta y por lo tanto <b>CORS pasó</b>: el path está mal y eso se arregla.
+    La diferencia entre esos dos casos es la que decide si el modo Merval puede vivir en una página sin servidor.
+    <br><br>
+    Fuentes de los paths candidatos:
+    <a href="https://open.bymadata.com.ar/" style="color:var(--accent)">BYMA Open Data</a> ·
+    <a href="https://github.com/franco-lamas/PyOBD" style="color:var(--accent)">PyOBD</a> ·
+    <a href="https://github.com/matiasgleser/bymadata-api-wrapper" style="color:var(--accent)">bymadata-api-wrapper</a>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+var BASE = 'https://open.bymadata.com.ar/vanoms-be-core/rest/api/bymadata/free/';
+
+/* Candidatos. `body` null = GET. Los paths salen de wrappers de la comunidad y pueden
+   estar vencidos: el probe los trata como hipótesis, no como hechos. */
+function candidatos(tk) {
+  var hoy = Math.floor(Date.now() / 1000);
+  var atras = hoy - 200 * 86400;
+  return [
+    { id: 'market-time',   path: 'market-time',        body: {} },
+    { id: 'indices',       path: 'index-price',        body: {} },
+    { id: 'líderes',       path: 'leading-equity',     body: { excludeZeroPxAndQty: true, T2: true, T1: false, T0: false } },
+    { id: 'general',       path: 'general-equity',     body: { excludeZeroPxAndQty: true, T2: true, T1: false, T0: false } },
+    { id: 'CEDEARs',       path: 'cedears',            body: { excludeZeroPxAndQty: true, T2: true, T1: false, T0: false } },
+    { id: 'bonos',         path: 'public-bonds',       body: { excludeZeroPxAndQty: true, T2: true, T1: false, T0: false } },
+    { id: 'serie diaria',  path: 'chart/historical-series/history?symbol=' + encodeURIComponent(tk) +
+                                 '&resolution=D&from=' + atras + '&to=' + hoy, body: null }
+  ];
+}
+
+var ultimo = {};   // id -> { estado, texto, json }
+
+function esc(s) {
+  return String(s).replace(/[&<>]/g, function (c) {
+    return c === '&' ? '&amp;' : c === '<' ? '&lt;' : '&gt;';
+  });
+}
+
+function pill(clase, txt) { return '<span class="pill ' + clase + '">' + esc(txt) + '</span>'; }
+
+function recorte(s, n) {
+  s = String(s);
+  return s.length > n ? s.slice(0, n) + ' …(' + s.length + ' bytes)' : s;
+}
+
+/* Devuelve siempre un objeto, nunca tira. El campo `clase` es la respuesta a la pregunta 1:
+   'cors' es el único fallo que no se arregla cambiando el path. */
+function probar(c) {
+  var opts = { method: c.body === null ? 'GET' : 'POST', mode: 'cors' };
+  if (c.body !== null) {
+    opts.headers = { 'Content-Type': 'application/json' };
+    opts.body = JSON.stringify(c.body);
+  }
+  return fetch(BASE + c.path, opts).then(function (r) {
+    return r.text().then(function (txt) {
+      var json = null;
+      try { json = JSON.parse(txt); } catch (e) { /* no era JSON, se reporta crudo */ }
+      return {
+        clase: r.ok ? 'ok' : 'http',
+        status: r.status,
+        tipo: r.headers.get('content-type') || '(sin content-type)',
+        texto: txt,
+        json: json
+      };
+    });
+  }).catch(function (e) {
+    return { clase: 'cors', status: null, tipo: null, texto: String(e && e.message || e), json: null };
+  });
+}
+
+function filaResultado(c, r) {
+  var p, det;
+  if (r.clase === 'ok') {
+    p = pill('p-ok', 'OK ' + r.status);
+    det = '<div class="dim">' + esc(r.tipo) + '</div><pre>' + esc(recorte(r.texto, 700)) + '</pre>';
+  } else if (r.clase === 'http') {
+    p = pill('p-warn', 'HTTP ' + r.status);
+    det = '<div class="warn">Hubo respuesta, así que <b>CORS pasó</b>. El path está mal o cambió.</div>' +
+          '<pre>' + esc(recorte(r.texto, 400)) + '</pre>';
+  } else {
+    p = pill('p-bad', 'Bloqueado');
+    det = '<div class="bad">Sin código de estado: CORS o red. El navegador no deja ver la respuesta.</div>' +
+          '<pre>' + esc(r.texto) + '</pre>';
+  }
+  return '<tr><td><code>' + esc(c.path.split('?')[0]) + '</code><div class="dim" style="margin-top:3px">' +
+         esc(c.id) + '</div></td><td>' + p + '</td><td>' + det + '</td></tr>';
+}
+
+/* ---- Pregunta 2: ¿la serie viene ajustada? ----
+   No se puede contestar con certeza desde el payload: hay que buscar un salto que coincida
+   con un split conocido. Lo que sí se puede hacer es mostrar el dato crudo y decir
+   explícitamente qué falta para contestarla. */
+function analizarSerie(r) {
+  if (r.clase !== 'ok' || !r.json) {
+    return '<div class="bad">No se pudo traer la serie. Esta pregunta queda sin contestar.</div>' +
+           '<div class="note">Mientras siga así, <b>ninguna regla de precio se puede evaluar honestamente</b>: ' +
+           'no sabés si el 38,25 de tu nivel de invalidación es comparable con el cierre que devuelve la API.</div>';
+    }
+  var j = r.json;
+  var barras = Array.isArray(j) ? j : (Array.isArray(j.t) ? j.t : (Array.isArray(j.data) ? j.data : null));
+  var n = barras ? barras.length : 0;
+  var claves = Array.isArray(j) && j.length ? Object.keys(j[0]) : Object.keys(j);
+  var pista = claves.filter(function (k) { return /adj|ajust/i.test(k); });
+
+  var h = '<div class="row" style="margin-bottom:8px">' +
+          pill(n ? 'p-ok' : 'p-warn', n ? n + ' barras' : 'formato no reconocido') +
+          pill(pista.length ? 'p-ok' : 'p-warn',
+               pista.length ? 'campo de ajuste: ' + pista.join(', ') : 'sin campo de ajuste explícito') +
+          '</div>';
+  h += '<div class="dim">Claves del payload: <code>' + esc(claves.join(', ')) + '</code></div>';
+  h += '<pre>' + esc(recorte(JSON.stringify(j), 900)) + '</pre>';
+  h += '<div class="note"><b>Esto todavía no contesta la pregunta.</b> Un campo llamado <code>close</code> ' +
+       'no dice si está ajustado. Para cerrarla hay que pedir una especie con un split conocido en el rango ' +
+       'y ver si el salto está o no está. Hasta entonces, el estado honesto es <span class="pill p-na">sin dato</span>, ' +
+       'y una regla de nivel de precio no se puede evaluar.</div>';
+  return h;
+}
+
+/* ---- Pregunta 3: el par para el MEP ----
+   No se aproxima con ninguna otra fuente: o están las dos patas, o el MEP no existe para la app. */
+function analizarMep(rBonos) {
+  if (rBonos.clase !== 'ok' || !rBonos.json) {
+    return '<div class="bad">No se pudo traer el panel de bonos. Sin esto no hay MEP.</div>' +
+           '<div class="note">El MEP no se toma de un portal ni se estima: se calcula del cociente entre ' +
+           'la punta en pesos y la punta en dólares del mismo bono. Si el par no está, la cartera se mide ' +
+           'en pesos y se dice que se mide en pesos.</div>';
+  }
+  var arr = rBonos.json.data || rBonos.json;
+  if (!Array.isArray(arr)) {
+    return '<div class="warn">El panel vino con una forma inesperada.</div><pre>' +
+           esc(recorte(JSON.stringify(rBonos.json), 500)) + '</pre>';
+  }
+  var buscar = ['GD30', 'GD30D', 'AL30', 'AL30D'];
+  var enc = {};
+  arr.forEach(function (o) {
+    var s = String(o.symbol || o.denominationCcy || o.securityId || '').toUpperCase().trim();
+    buscar.forEach(function (b) { if (s === b || s.indexOf(b) === 0) enc[b] = o; });
+  });
+  var h = '<div class="row" style="margin-bottom:8px">';
+  buscar.forEach(function (b) { h += pill(enc[b] ? 'p-ok' : 'p-bad', b + (enc[b] ? ' ✓' : ' ausente')); });
+  h += '</div>';
+  var par = (enc.GD30 && enc.GD30D) ? 'GD30' : (enc.AL30 && enc.AL30D) ? 'AL30' : null;
+  if (par) {
+    var a = enc[par], b = enc[par + 'D'];
+    var pa = a.trade || a.closingPrice || a.settlementPrice, pb = b.trade || b.closingPrice || b.settlementPrice;
+    h += '<div class="ok">Par completo: <b>' + par + ' / ' + par + 'D</b>. ' +
+         'MEP derivable de fuente primaria, sin estimar.</div>';
+    if (pa && pb) h += '<div class="note">Cociente con los precios de este payload: <b>' +
+                       (pa / pb).toLocaleString('es-AR', { maximumFractionDigits: 2 }) + '</b></div>';
+    h += '<pre>' + esc(recorte(JSON.stringify(a), 380)) + '</pre>';
+  } else {
+    h += '<div class="bad">No hay ningún par completo en este panel. Puede estar en otro endpoint ' +
+         '(los "D" a veces viven en un panel separado). Hasta encontrarlo, la cartera se mide en pesos.</div>';
+    h += '<div class="note">Símbolos vistos: <code>' +
+         esc(arr.slice(0, 40).map(function (o) { return o.symbol || '?'; }).join(' ')) + '</code></div>';
+  }
+  return h;
+}
+
+function veredicto(rs) {
+  var vals = Object.keys(rs).map(function (k) { return rs[k].clase; });
+  var bloqueados = vals.filter(function (v) { return v === 'cors'; }).length;
+  var vivos = vals.filter(function (v) { return v === 'ok' || v === 'http'; }).length;
+  var h = '';
+  if (vivos === 0) {
+    h += '<p class="veredicto bad">CORS cerrado. La página sin servidor no puede leer BYMA.</p>' +
+         '<div>Las tres opciones, en orden de cuánto rompen el proyecto: ' +
+         '<b>(a)</b> un proxy propio — mata "sin servidor" y agrega algo que se puede caer; ' +
+         '<b>(b)</b> autorreporte sin precios — vuelve el modo de falla de julio; ' +
+         '<b>(c)</b> un job que publica un JSON estático al repo una vez por día — ' +
+         'la página sigue siendo estática, el dato llega igual, y el retraso de un día ' +
+         'no importa en una cartera lenta. <b>(c) es la que menos rompe.</b></div>';
+  } else if (bloqueados === 0) {
+    h += '<p class="veredicto ok">CORS abierto. El plan sigue como está.</p>' +
+         '<div>Los endpoints que dieron HTTP con código son path equivocado, no bloqueo: se corrigen mirando ' +
+         'el wrapper actualizado. Fase 1 puede arrancar.</div>';
+  } else {
+    h += '<p class="veredicto warn">Mezclado: ' + vivos + ' contestaron, ' + bloqueados + ' quedaron bloqueados.</p>' +
+         '<div>Si los bloqueados son de red y no de CORS, reintentá. Si son consistentes, ' +
+         'el subconjunto que contesta define qué reglas se pueden evaluar — y las que dependan ' +
+         'de un endpoint muerto <b>no se aproximan con otro</b>: se declaran sin dato.</div>';
+  }
+  h += '<div class="note" style="margin-top:10px"><b>Y una advertencia que vale igual si todo salió verde:</b> ' +
+       'esto se probó una vez, desde un navegador, un martes. BYMA puede cerrar CORS mañana sin avisar. ' +
+       'Cualquier cosa que se construya arriba necesita tratar "sin dato" como estado normal, no como error.</div>';
+  return h;
+}
+
+function correr() {
+  var tk = (document.getElementById('tk').value || 'GGAL').toUpperCase().trim();
+  var cs = candidatos(tk);
+  var btn = document.getElementById('go');
+  btn.disabled = true; btn.textContent = 'Probando…';
+  document.getElementById('t1').innerHTML = '<tr><td colspan="3" class="dim">Probando ' + cs.length + ' endpoints…</td></tr>';
+
+  Promise.all(cs.map(probar)).then(function (rs) {
+    var filas = '', mapa = {};
+    cs.forEach(function (c, i) { filas += filaResultado(c, rs[i]); mapa[c.id] = rs[i]; });
+    document.getElementById('t1').innerHTML = filas;
+    document.getElementById('c2').innerHTML = analizarSerie(mapa['serie diaria']);
+    document.getElementById('c3').innerHTML = analizarMep(mapa['bonos']);
+    document.getElementById('ver').innerHTML = veredicto(mapa);
+    ultimo = mapa;
+    btn.disabled = false; btn.textContent = 'Correr de nuevo';
+  });
+}
+
+function limpiar() {
+  document.getElementById('t1').innerHTML = '<tr><td colspan="3" class="dim">Sin correr.</td></tr>';
+  ['c2', 'c3', 'ver'].forEach(function (id) {
+    document.getElementById(id).innerHTML = '<div class="dim">Sin correr.</div>';
+  });
+}
+
+(function initOrigen() {
+  var o = location.origin;
+  var esArchivo = (o === 'null' || location.protocol === 'file:');
+  var el = document.getElementById('origen');
+  var txt;
+  if (esArchivo) {
+    txt = 'Estás abriendo el archivo con <code>file://</code>, así que el origen es <code>null</code>. ' +
+          '<b>Un resultado desde acá no sirve para decidir nada:</b> los navegadores tratan el origen nulo ' +
+          'distinto que un origen https real, en las dos direcciones. ' +
+          'Subilo a <code>agroyffer.github.io</code> y corrés el probe desde ahí — ' +
+          'ese es el origen donde va a vivir el modo Merval, y es el único cuyo resultado cuenta.';
+  } else {
+    el.classList.remove('crit');
+    txt = 'Origen actual: <code>' + esc(o) + '</code>. ' +
+          (/github\.io/.test(o)
+            ? 'Es el origen donde va a vivir la app: <b>este resultado es el que vale.</b>'
+            : 'No es <code>agroyffer.github.io</code>. Sirve como indicio, pero confirmalo desde el origen real antes de decidir.');
+  }
+  el.querySelector('.note').innerHTML = txt;
+})();
+
+document.getElementById('go').addEventListener('click', correr);
+document.getElementById('clr').addEventListener('click', limpiar);
+</script>
+</body>
+</html>

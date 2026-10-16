@@ -1,6 +1,6 @@
 require('./stub.js');
-const src = require('fs').readFileSync('/tmp/inline.js','utf8');
-const base = require('/sessions/friendly-modest-noether/mnt/uploads/trade_xyz_2026-07-29 (2).json');
+const src = require('fs').readFileSync(process.env.TALASTRAT_INLINE || '/tmp/inline.js','utf8');
+const base = require('./fixture.js');
 const raw = JSON.parse(JSON.stringify(base));
 raw.state.xyz.assetPositions = []; raw.orders.xyz = [];
 global.__raw = raw;

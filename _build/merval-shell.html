@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Talastrat · modo Merval</title>
+<style>
+  :root{
+    --bg:#0a0d11; --panel:#131820; --panel2:#1a212b; --line:#242d3a;
+    --txt:#e6edf3; --txt2:#b3bdc9; --mut:#7d8896;
+    --acc:#58a6ff; --up:#3fb950; --down:#f85149; --warn:#d29922;
+    --onacc:#06121f; --talbg:#131820;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-size:15px;line-height:1.5;padding:22px 18px 80px}
+  .wrap{max-width:1080px;margin:0 auto}
+  h1{font-size:19px;margin:0;font-weight:650;letter-spacing:-.2px}
+  h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--mut);
+     margin:28px 0 10px;font-weight:600}
+  .sub{color:var(--mut);font-size:12.5px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:15px 17px;margin-bottom:11px}
+  .grid{display:grid;gap:11px}
+  .g2{grid-template-columns:repeat(auto-fit,minmax(330px,1fr))}
+  .g3{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+  .row{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+  .sp{justify-content:space-between}
+
+  /* ===== Taladrín ===== */
+  .tal{display:flex;gap:15px;align-items:center;background:var(--talbg);
+       border:1px solid var(--line);border-radius:11px;padding:15px 18px;margin-bottom:16px}
+  .tal svg{width:84px;height:62px;flex-shrink:0;overflow:visible}
+  .tal .dice{font-size:14.5px;color:var(--txt2);min-height:1.4em}
+  .tal .est{font-size:11px;text-transform:uppercase;letter-spacing:.09em;
+            font-weight:650;margin-bottom:4px}
+  .tal.reposo .est{color:var(--mut)} .tal.alerta .est{color:var(--warn)}
+  .tal.apretado .est{color:var(--down)} .tal.nose .est{color:var(--mut)}
+  .tal .salidas{font-size:12px;color:var(--mut);margin-top:6px}
+  @keyframes flota{0%,100%{transform:translateY(0)}50%{transform:translateY(-2.5px)}}
+  .flota{animation:flota 3.4s ease-in-out infinite;transform-origin:center}
+  @keyframes gira{to{stroke-dashoffset:-8}}
+  .bit{stroke-dasharray:4 4;animation:gira .9s linear infinite}
+  .tal.reposo .bit,.tal.nose .bit{animation-duration:3.4s}
+  @media(prefers-reduced-motion:reduce){.flota,.bit{animation:none}}
+
+  /* ===== tablas y controles ===== */
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th{text-align:left;color:var(--mut);font-weight:600;font-size:10.5px;text-transform:uppercase;
+     letter-spacing:.07em;padding:7px 8px;border-bottom:1px solid var(--line)}
+  td{padding:8px;border-bottom:1px solid #1c2430;vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  .num{text-align:right;font-variant-numeric:tabular-nums}
+  input,select{background:var(--panel2);color:var(--txt);border:1px solid var(--line);
+    border-radius:6px;padding:7px 9px;font-size:13.5px;font-family:inherit;width:100%}
+  input:focus,select:focus{outline:2px solid var(--acc);outline-offset:1px}
+  input.w6{width:78px} input.w8{width:104px}
+  label{font-size:11px;color:var(--mut);display:block;margin-bottom:3px}
+  button{background:var(--acc);color:var(--onacc);border:0;border-radius:7px;
+    padding:8px 15px;font-size:13.5px;font-weight:650;cursor:pointer;font-family:inherit}
+  button:hover{filter:brightness(1.09)}
+  button.sec{background:var(--panel2);color:var(--txt);border:1px solid var(--line)}
+  button.mini{padding:4px 9px;font-size:11.5px}
+  button.del{background:transparent;color:var(--mut);border:1px solid var(--line)}
+  button.del:hover{color:var(--down);border-color:var(--down)}
+
+  .pill{display:inline-block;padding:2px 8px;border-radius:11px;font-size:10.5px;font-weight:650;
+    text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+  .p-ok{background:#3fb95024;color:var(--up);border:1px solid #3fb95059}
+  .p-no{background:#f8514924;color:var(--down);border:1px solid #f8514966}
+  .p-sd{background:#7d889622;color:var(--mut);border:1px solid #7d889647}
+  .p-pend{background:#58a6ff1f;color:var(--acc);border:1px solid #58a6ff55}
+  .p-warn{background:#d2992222;color:var(--warn);border:1px solid #d2992259}
+
+  .big{font-size:25px;font-weight:650;letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+  .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--mut);margin-bottom:5px}
+  .note{font-size:11.5px;color:var(--mut);margin-top:5px;line-height:1.45}
+  .mut{color:var(--mut)} .up{color:var(--up)} .down{color:var(--down)} .warn{color:var(--warn)}
+  .barra{height:6px;background:var(--panel2);border-radius:3px;overflow:hidden;margin-top:7px}
+  .barra i{display:block;height:100%;background:var(--acc);border-radius:3px}
+  .serie{display:flex;gap:3px;margin-top:8px;flex-wrap:wrap}
+  .serie i{width:9px;height:9px;border-radius:2px;background:var(--panel2)}
+  .serie i.ok{background:var(--up)} .serie i.no{background:var(--down)}
+  .serie i.sd{background:#2c3543}
+  .callado{color:var(--mut);font-size:12.5px;font-style:italic}
+  code{background:var(--panel2);padding:1px 5px;border-radius:4px;font-size:12px;
+       font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .rev{border-left:3px solid var(--warn);padding-left:11px;margin:9px 0;font-size:12.5px}
+  .rev .falta{color:var(--down)}
+  .foot{margin-top:34px;padding-top:14px;border-top:1px solid var(--line);font-size:11.5px;color:var(--mut)}
+  .hide{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="row sp" style="margin-bottom:14px">
+    <div>
+      <h1>Talastrat · modo Merval</h1>
+      <div class="sub">Acompaña la ejecución de tu plan. No mira precios, no calcula resultado, no sugiere qué comprar.</div>
+    </div>
+    <div class="sub">v<span id="ver">__BUILD__</span></div>
+  </div>
+
+  <div class="tal nose" id="tal">
+    <div id="drill"></div>
+    <div>
+      <div class="est" id="est">SIN PLAN</div>
+      <div class="dice" id="dice"></div>
+      <div class="salidas" id="salidas"></div>
+    </div>
+  </div>
+
+  <h2>Tu objetivo</h2>
+  <div class="card">
+    <table>
+      <thead><tr><th>Ticker</th><th style="width:100px">Peso %</th><th style="width:150px">Sector</th><th style="width:42px"></th></tr></thead>
+      <tbody id="tObj"></tbody>
+    </table>
+    <div class="row" style="margin-top:11px">
+      <button class="mini sec" id="addObj">+ posición</button>
+      <span class="note" style="margin:0" id="sumaObj"></span>
+    </div>
+  </div>
+
+  <h2>Tus reglas</h2>
+  <div class="card">
+    <div class="grid g3">
+      <div><label for="rMaxPos">Máximo por posición (%)</label><input id="rMaxPos" type="number" min="0" max="100" placeholder="sin declarar"></div>
+      <div><label for="rMaxSec">Máximo por sector (%)</label><input id="rMaxSec" type="number" min="0" max="100" placeholder="sin declarar"></div>
+      <div><label for="rMinPos">Mínimo de posiciones</label><input id="rMinPos" type="number" min="1" placeholder="sin declarar"></div>
+    </div>
+    <div id="contr" style="margin-top:12px"></div>
+  </div>
+
+  <h2>Tramos</h2>
+  <div class="card">
+    <div class="grid" style="grid-template-columns:1.1fr .9fr .9fr .9fr .9fr auto;align-items:end;gap:9px">
+      <div><label for="nTk">Ticker</label><input id="nTk" placeholder="GGAL"></div>
+      <div><label for="nMonto">Monto</label><input id="nMonto" placeholder="100000"></div>
+      <div><label for="nTipo">Tipo de orden</label><select id="nTipo"><option value="limite">límite</option><option value="mercado">mercado</option></select></div>
+      <div><label for="nDesde">Desde</label><input id="nDesde" type="date"></div>
+      <div><label for="nHasta">Hasta</label><input id="nHasta" type="date"></div>
+      <div><button id="addTr">Declarar</button></div>
+    </div>
+    <div class="note">Declarar el tramo antes de mandar la orden es la intervención, no el trámite. El monto acepta <code>100.000,50</code>.</div>
+  </div>
+  <div class="card">
+    <table>
+      <thead><tr><th>Ticker</th><th class="num">Monto</th><th>Tipo</th><th>Ventana</th><th>Estado</th><th>Ejecución</th><th style="width:42px"></th></tr></thead>
+      <tbody id="tTr"><tr><td colspan="7" class="mut">Todavía no declaraste ningún tramo.</td></tr></tbody>
+    </table>
+  </div>
+
+  <h2>Cómo venís ejecutando</h2>
+  <div class="grid g3" id="habs"></div>
+
+  <div class="grid g2">
+    <div class="card">
+      <div class="lbl">Distancia a tu objetivo</div>
+      <div class="big" id="dist">—</div>
+      <div class="barra"><i id="barAv" style="width:0%"></i></div>
+      <div class="note" id="notaTray">Se mide a monto invertido, no a valor de mercado: así el peso solo se mueve cuando comprás vos.</div>
+    </div>
+    <div class="card">
+      <div class="lbl">Tipo de orden</div>
+      <div class="big" id="tecPct">—</div>
+      <div class="note" id="notaTec"></div>
+    </div>
+  </div>
+
+  <h2>Señales</h2>
+  <div class="card" id="senales"></div>
+
+  <h2>Tus datos</h2>
+  <div class="card">
+    <div class="row">
+      <button class="sec" id="expo">Bajar JSON</button>
+      <label for="impo" style="margin:0"><span class="pill p-pend" style="cursor:pointer">Cargar JSON</span></label>
+      <input id="impo" type="file" accept=".json,application/json" class="hide">
+      <button class="del" id="wipe">Borrar todo</button>
+      <span class="note" style="margin:0">Todo vive en este navegador. No sale nada a ningún servidor.</span>
+    </div>
+    <div id="revBox"></div>
+  </div>
+
+  <div class="foot">
+    <b>Esto no es asesoramiento financiero.</b> No sugiere activos, no opina sobre dirección y no calcula rendimiento.
+    Mide una sola cosa: si estás haciendo lo que vos escribiste que ibas a hacer.
+  </div>
+</div>
+
+<script>
+/*__ENGINE__*/
+
+/* ===================== Taladrín ===================== */
+const LN = '#0f1714';
+const ceja = (d, w) => `<path d="${d}" fill="none" stroke="${LN}" stroke-width="${w || 3.8}" stroke-linecap="round"/>`;
+const boca = (d, w) => `<path d="${d}" fill="none" stroke="${LN}" stroke-width="${w || 2.2}" stroke-linecap="round" stroke-linejoin="round"/>`;
+const ojo = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r || 2.1}" fill="${LN}"/>`;
+const ojoCerrado = (x, y) => `<path d="M${x - 2.8} ${y + 1} q2.8 2.2 5.6 0" fill="none"
+  stroke="${LN}" stroke-width="1.8" stroke-linecap="round"/>`;
+
+/* Cuatro caras y ni una más. El modo perps tiene ocho porque tiene ocho estados; acá
+   hay cuatro, y la cuarta —'nose'— es la del `null`, que al principio va a ser la más
+   frecuente. Una app que no puede dibujar "no sé" termina dibujando otra cosa. */
+const CARAS = {
+  reposo:   ceja('M17 12 h11') + ceja('M33 12 h11') +
+    `<g class="ojos">${ojo(23, 19)}${ojo(38, 19)}</g>` + boca('M27 27.5 h8'),
+  alerta:   ceja('M17 10.5 h11', 3.4) + ceja('M33 10.5 h11', 3.4) +
+    `<g class="ojos">${ojo(23, 19, 2.5)}${ojo(38, 19, 2.5)}</g>` + boca('M28 27 h6'),
+  apretado: ceja('M16 6.5 l12 4', 4) + ceja('M45 6.5 l-12 4', 4) +
+    `<g class="ojos">${ojo(23, 20.5, 2.8)}${ojo(38, 20.5, 2.8)}</g>` + boca('M27 29 q4 -3 8 0'),
+  nose:     ceja('M17 12 h11', 3.4) + ceja('M33 12 h11', 3.4) +
+    `<g class="ojos">${ojoCerrado(23, 19)}${ojoCerrado(38, 19)}</g>` + boca('M28 27 h6')
+};
+
+/* Una sola paleta. La roja de `PALETA.tilt` es del otro modo y traerla acá haría que
+   dos productos distintos usen el mismo rojo para cosas distintas. El estado se dice
+   con el rótulo, no repintando al personaje. */
+const C = { cuerpo:'#54b391', sombra:'#358068', grip:'#2f4a41', gripS:'#1e332c',
+            metal:'#8fbfae', mecha:'#e9f6f1' };
+
+function drillSvg(cara) {
+  return `<svg viewBox="-4 -4 88 73" xmlns="http://www.w3.org/2000/svg" role="img"
+    aria-label="Taladrín, estado ${cara}" overflow="visible">
+  <g class="flota">
+  <path d="M21 31 L18 55 q-.6 4 4 4 h16 q4.6 0 4-4 L38 31z" fill="${C.grip}" stroke="${LN}" stroke-width="2"/>
+  <path d="M30 31 L30 59 h8 q4.6 0 4-4 L38 31z" fill="${C.gripS}" stroke="none"/>
+  <rect x="15" y="53" width="30" height="10" rx="3.5" fill="${C.gripS}" stroke="${LN}" stroke-width="2"/>
+  <path d="M22 38 h14 M21 43 h14 M21 48 h14" stroke="${C.gripS}" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+  <rect x="12" y="3" width="38" height="29" rx="12" fill="${C.cuerpo}" stroke="${LN}" stroke-width="2.2"/>
+  <path d="M38 3 h0 a12 12 0 0 1 0 29 h-3 a12 12 0 0 0 0-29z" fill="${C.sombra}"/>
+  <path d="M50 10 l7 2.5 v10 L50 25z" fill="${C.metal}" stroke="${LN}" stroke-width="1.6"/>
+  <path class="bit" d="M57 17.5 H71" stroke="${C.mecha}" stroke-width="3.6" stroke-linecap="butt"/>
+  <path d="M60 15 l3 5 M65 15 l3 5" stroke="${C.metal}" stroke-width="1.6" stroke-linecap="round" fill="none"/>
+  <path d="M71 14.6 L77 17.5 L71 20.4z" fill="${C.mecha}" stroke="${LN}" stroke-width="1.2"/>
+  <g class="face">${CARAS[cara] || CARAS.nose}</g>
+  </g>
+</svg>`;
+}
+
+/* ===================== Estado ===================== */
+/* `DIA` no se redeclara acá: ya viene del motor, y el build corta si se pisa —
+   que es exactamente lo que hizo la primera vez que se armó esta página. */
+const CLAVE = 'talastrat.merval.v1';
+const $ = id => document.getElementById(id);
+
+let PLAN = null;
+let REVISION = null;
+
+function planVacio() {
+  return { creado: Date.now(), objetivo: [], reglas: {}, tramos: [], ediciones: [], tenenciaInicial: [] };
+}
+
+function cargar() {
+  let raw = null;
+  try { raw = JSON.parse(localStorage.getItem(CLAVE) || 'null'); } catch (e) { raw = null; }
+  const r = desdePlan(raw || planVacio());
+  PLAN = r.plan; REVISION = r.revision;
+}
+
+function guardar() {
+  PLAN.tramos.forEach((tr, i) => { if (tr.id == null) tr.id = 't' + (i + 1); });
+  try { localStorage.setItem(CLAVE, JSON.stringify(PLAN)); } catch (e) { /* modo privado */ }
+  REVISION = revisar(PLAN);
+  pintar();
+}
+
+/* Editar el objetivo es un evento con fecha, y se guarda. Es la señal 3: no se juzga
+   —cambiar de idea en frío es legítimo, y es la salida válida del estado apretado— pero
+   una edición después de haber empezado a ejecutar no es lo mismo que planificar. */
+function anotarEdicion(campo, ticker, antes, despues) {
+  if (antes === despues) return;
+  PLAN.ediciones.push({ ts: Date.now(), campo, ticker: ticker || null, antes, despues });
+}
+
+/* ===================== Formato ===================== */
+const fmt = n => n == null ? '—' : n.toLocaleString('es-AR', { maximumFractionDigits: 2 });
+const pct = n => n == null ? '—' : (n * 100).toFixed(0) + '%';
+const fecha = ts => ts == null ? '—' : new Date(ts).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
+const aFecha = ts => ts == null ? '' : new Date(ts - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
+const deFecha = s => s ? new Date(s + 'T12:00:00').getTime() : null;
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+const PILL = { como: ['p-ok', 'como estaba'], distinto: ['p-warn', 'distinto'],
+  noEjecutado: ['p-no', 'no ejecutado'], pendiente: ['p-pend', 'pendiente'], sinDato: ['p-sd', 'sin dato'] };
+
+/* ===================== Pintado ===================== */
+function pintar() {
+  const now = Date.now();
+  const R = resumen(PLAN, now);
+
+  pintarTaladrin(R);
+  pintarObjetivo();
+  pintarReglas(R);
+  pintarTramos(R, now);
+  pintarHabitos(R);
+  pintarTrayectoria(R);
+  pintarTecnica(R);
+  pintarSenales(R);
+  pintarRevision();
+}
+
+function pintarTaladrin(R) {
+  const c = R.cara;
+  $('tal').className = 'tal ' + c.cara;
+  $('drill').innerHTML = drillSvg(c.cara);
+  $('est').textContent = { reposo: 'EN REPOSO', alerta: 'ATENTO', apretado: 'APRETADO', nose: 'NO SÉ' }[c.cara];
+  /* `voz` devuelve null seguido y eso está bien: callarse es una respuesta válida.
+     Cuando no hay nada con un número al lado, se muestra el motivo del estado y nada más. */
+  $('dice').textContent = R.voz || c.motivo || '';
+  $('salidas').textContent = c.salidas && c.salidas.length
+    ? 'Salidas: ' + c.salidas.join(' · ') : '';
+}
+
+function pintarObjetivo() {
+  const O = PLAN.objetivo;
+  $('tObj').innerHTML = O.length ? O.map((o, i) => `<tr>
+    <td><input data-o="${i}" data-k="ticker" value="${esc(o.ticker)}" placeholder="GGAL"></td>
+    <td><input data-o="${i}" data-k="peso" type="number" min="0" max="100" value="${o.peso == null ? '' : o.peso}"></td>
+    <td><input data-o="${i}" data-k="sector" value="${esc(o.sector)}" placeholder="sin declarar"></td>
+    <td><button class="del mini" data-delo="${i}">×</button></td></tr>`).join('')
+    : '<tr><td colspan="4" class="mut">Escribí acá la cartera que querés alcanzar. Esta parte no se puede importar de una captura: declararla es el ejercicio.</td></tr>';
+
+  const suma = O.reduce((a, o) => a + (o.peso || 0), 0);
+  $('sumaObj').innerHTML = O.length
+    ? `Suman <b class="${Math.abs(suma - 100) < 0.5 ? 'up' : 'warn'}">${suma.toFixed(1)}%</b>. No se reescalan solos.`
+    : '';
+}
+
+function pintarReglas(R) {
+  const cs = R.senales.contradicciones;
+  $('contr').innerHTML = cs.map(c => {
+    const cl = c.estado === 'choca' ? 'p-no' : c.estado === 'ok' ? 'p-ok' : 'p-sd';
+    const et = c.estado === 'choca' ? 'choca' : c.estado === 'ok' ? 'ok' : 'sin dato';
+    return `<div class="row" style="gap:8px;margin:5px 0"><span class="pill ${cl}">${et}</span>
+      <span class="sub">${esc(c.txt)}</span></div>`;
+  }).join('');
+}
+
+function pintarTramos(R, now) {
+  const T = PLAN.tramos;
+  if (!T.length) {
+    $('tTr').innerHTML = '<tr><td colspan="7" class="mut">Todavía no declaraste ningún tramo.</td></tr>';
+    return;
+  }
+  $('tTr').innerHTML = T.map((tr, i) => {
+    const e = tr._e || estadoTramo(tr, now);
+    const [cl, et] = PILL[e.estado] || PILL.sinDato;
+    const motivo = e.motivo ? ` <span class="mut">· ${esc(e.motivo)}</span>` : '';
+    const cambios = e.cambios && e.cambios.length
+      ? ` <span class="mut">· cambió ${e.cambios.map(c => c.campo).join(', ')}</span>` : '';
+    let acc;
+    if (tr.ejec) {
+      acc = `<span class="mut">${fecha(tr.ejec.ts)} · ${esc(tr.ejec.tipo || '?')} · ${fmt(tr.ejec.monto)}</span>
+        <button class="del mini" data-undo="${i}">deshacer</button>`;
+    } else {
+      acc = `<button class="mini sec" data-ok="${i}">se ejecutó</button>
+        <button class="mini del" data-nofill="${i}">no se llenó</button>`;
+    }
+    return `<tr>
+      <td><b>${esc(tr.ticker)}</b></td>
+      <td class="num">${fmt(tr.monto)}</td>
+      <td class="mut">${esc(tr.tipo || '—')}</td>
+      <td class="mut">${fecha(tr.desde)} → ${fecha(tr.hasta)}</td>
+      <td><span class="pill ${cl}">${et}</span>${motivo}${cambios}</td>
+      <td>${acc}</td>
+      <td><button class="del mini" data-deltr="${i}">×</button></td></tr>`;
+  }).join('');
+}
+
+function pintarHabitos(R) {
+  $('habs').innerHTML = R.habitos.map(h => {
+    const cuerpo = h.suficiente
+      ? `<div class="big">${pct(h.pct)}</div>
+         <div class="note">${h.cumplidas} de ${h.deN} juzgadas${h.sinDato ? ` · ${h.sinDato} sin dato` : ''}</div>`
+      : `<div class="callado">Faltan tramos para decir un número. Van ${h.deN} de ${MUESTRA_MIN}.</div>`;
+    return `<div class="card">
+      <div class="lbl">${esc(h.nombre)}</div>
+      ${cuerpo}
+      <div class="note">Racha ${h.racha}${h.mejor > h.racha ? ` · récord ${h.mejor}` : ''}</div>
+      <div class="note">${esc(h.accion)}</div>
+    </div>`;
+  }).join('');
+}
+
+function pintarTrayectoria(R) {
+  const t = R.trayectoria;
+  if (!t.hay || !t.pasos.length) {
+    $('dist').textContent = '—';
+    $('barAv').style.width = '0%';
+    return;
+  }
+  $('dist').textContent = pct(t.dist);
+  $('barAv').style.width = Math.min(100, (t.avance || 0) * 100).toFixed(1) + '%';
+  const acercaron = t.pasos.filter(p => p.acerco).length;
+  $('notaTray').innerHTML = `${acercaron} de ${t.pasos.length} compras te acercaron. `
+    + `Avance del plan ${pct(t.avance)}.`
+    + `<div class="serie">${t.pasos.map(p => `<i class="${p.acerco ? 'ok' : 'no'}"></i>`).join('')}</div>`
+    + `<div style="margin-top:6px">Se mide a monto invertido, no a valor de mercado: así el peso solo se mueve cuando comprás vos.</div>`;
+}
+
+function pintarTecnica(R) {
+  const a = R.tecnica.adherencia, p = R.tecnica.perfil;
+  if (a.suficiente) {
+    $('tecPct').textContent = pct(a.pct);
+    $('notaTec').innerHTML = `Mandaste el tipo que declaraste en ${a.cumple} de ${a.n}.`;
+  } else {
+    $('tecPct').textContent = '—';
+    $('notaTec').innerHTML = `<span class="callado">Van ${a.n} de ${MUESTRA_MIN}. Hasta ahí no significa nada.</span>`;
+  }
+  $('notaTec').innerHTML += `<div style="margin-top:6px">Ejecutadas: ${p.limite} a límite · ${p.mercado} a mercado`
+    + (p.sinLlenar ? ` · <b>${p.sinLlenar} límite que no se llenó</b>` : '')
+    + `</div><div style="margin-top:5px">La app no sostiene que el límite sea mejor. Cuenta si hiciste lo que dijiste.</div>`;
+}
+
+function pintarSenales(R) {
+  const s = R.senales, out = [];
+
+  if (s.contenido.hay && s.contenido.n) {
+    out.push(s.contenido.fuera.length
+      ? `<span class="pill p-warn">desvío</span> ${s.contenido.fuera.length} de ${s.contenido.n} compras fueron a papeles que no están en tu objetivo: ${s.contenido.fuera.map(f => esc(f.ticker)).join(', ')}.`
+      : `<span class="pill p-ok">ok</span> las ${s.contenido.n} compras fueron a papeles de tu objetivo.`);
+  } else {
+    out.push(`<span class="pill p-sd">sin dato</span> todavía no hay compras contra las que comparar el contenido.`);
+  }
+
+  if (s.ritmo.suficiente) {
+    const r = s.ritmo.razon;
+    const txt = r == null ? 'no hay ventana de plan para comparar'
+      : r < 0.5 ? `comprimiste el plan: se estiraba ${s.ritmo.spanPlan} días y lo hiciste en ${s.ritmo.spanReal}`
+      : r > 2 ? `estiraste el plan: eran ${s.ritmo.spanPlan} días y vas por ${s.ritmo.spanReal}`
+      : `vas en el ritmo que escribiste (${s.ritmo.spanReal} contra ${s.ritmo.spanPlan} días)`;
+    out.push(`<span class="pill ${r != null && (r < 0.5 || r > 2) ? 'p-warn' : 'p-ok'}">ritmo</span> ${txt}. `
+      + `${s.ritmo.dias} día(s) distintos para ${s.ritmo.n} tramos.`);
+  } else {
+    out.push(`<span class="pill p-sd">sin dato</span> con ${s.ritmo.n} tramos ejecutados no se puede hablar de ritmo. Hacen falta ${RITMO_MIN}.`);
+  }
+
+  const re = s.reescrituras;
+  out.push(re.enVuelo
+    ? `<span class="pill p-warn">reescritura</span> editaste el objetivo ${re.enVuelo} vez(ces) después de haber empezado a comprar. No está mal: queda anotado.`
+    : `<span class="pill p-ok">ok</span> no tocaste el objetivo desde que empezaste a ejecutar.`);
+
+  $('senales').innerHTML = out.map(o => `<div style="margin:7px 0;font-size:13.5px">${o}</div>`).join('')
+    + `<div class="note">La app no infiere estados de ánimo. Mide cuatro cosas observables: qué compraste, cuándo, si reescribiste el objetivo y si el plan se contradice con tus propias reglas.</div>`;
+}
+
+function pintarRevision() {
+  if (!REVISION || (!REVISION.falta && !REVISION.confirmar)) { $('revBox').innerHTML = ''; return; }
+  const items = REVISION.items.filter(i => i.estado !== 'ok').slice(0, 12);
+  $('revBox').innerHTML = `<div class="rev">
+    <b>Para revisar a ojo.</b> Nada de esto se corrige solo: un número mal leído rompe el tablero en silencio.
+    ${items.map(i => `<div class="${i.estado === 'falta' ? 'falta' : 'mut'}">· ${esc(i.txt)}</div>`).join('')}
+    ${REVISION.items.length > items.length ? `<div class="mut">· y ${REVISION.items.length - items.length} más</div>` : ''}
+  </div>`;
+}
+
+/* ===================== Eventos ===================== */
+function inicio() {
+  cargar();
+
+  $('addObj').onclick = () => { PLAN.objetivo.push({ ticker: '', peso: null, sector: null }); guardar(); };
+
+  $('tObj').addEventListener('change', ev => {
+    const el = ev.target;
+    if (el.dataset.o == null) return;
+    const o = PLAN.objetivo[+el.dataset.o], k = el.dataset.k;
+    const val = k === 'peso' ? num(el.value) : (el.value.trim() || null);
+    anotarEdicion(k, o.ticker, o[k], val);
+    o[k] = k === 'ticker' && val ? val.toUpperCase() : val;
+    guardar();
+  });
+  $('tObj').addEventListener('click', ev => {
+    const i = ev.target.dataset.delo;
+    if (i == null) return;
+    const o = PLAN.objetivo[+i];
+    anotarEdicion('baja', o.ticker, o.peso, null);
+    PLAN.objetivo.splice(+i, 1); guardar();
+  });
+
+  [['rMaxPos', 'maxPos'], ['rMaxSec', 'maxSector'], ['rMinPos', 'minPosiciones']].forEach(([id, k]) => {
+    $(id).value = PLAN.reglas[k] == null ? '' : PLAN.reglas[k];
+    $(id).onchange = () => {
+      anotarEdicion('regla.' + k, null, PLAN.reglas[k], num($(id).value));
+      PLAN.reglas[k] = num($(id).value);
+      guardar();
+    };
+  });
+
+  $('addTr').onclick = () => {
+    const tk = ($('nTk').value || '').toUpperCase().trim();
+    const monto = num($('nMonto').value);
+    if (!tk || !(monto > 0)) { $('nTk').focus(); return; }
+    PLAN.tramos.push({
+      id: 't' + (PLAN.tramos.length + 1) + '_' + Date.now().toString(36),
+      ticker: tk, monto, tipo: $('nTipo').value,
+      desde: deFecha($('nDesde').value) || Date.now(),
+      hasta: deFecha($('nHasta').value),
+      declarado: Date.now(), ejec: null
+    });
+    $('nTk').value = ''; $('nMonto').value = '';
+    guardar();
+  };
+
+  $('tTr').addEventListener('click', ev => {
+    const d = ev.target.dataset;
+    if (d.ok != null) {
+      const tr = PLAN.tramos[+d.ok];
+      tr.ejec = { ts: Date.now(), ticker: tr.ticker, monto: tr.monto, tipo: tr.tipo, lleno: true };
+    } else if (d.nofill != null) {
+      const tr = PLAN.tramos[+d.nofill];
+      tr.ejec = { ts: Date.now(), ticker: tr.ticker, monto: tr.monto, tipo: tr.tipo, lleno: false };
+    } else if (d.undo != null) {
+      PLAN.tramos[+d.undo].ejec = null;
+    } else if (d.deltr != null) {
+      PLAN.tramos.splice(+d.deltr, 1);
+    } else return;
+    guardar();
+  });
+
+  $('expo').onclick = () => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(PLAN, null, 2)], { type: 'application/json' }));
+    a.download = 'mi-plan-merval.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  $('impo').onchange = ev => {
+    const f = ev.target.files && ev.target.files[0];
+    if (!f) return;
+    const rd = new FileReader();
+    rd.onload = () => {
+      try {
+        const r = desdePlan(JSON.parse(rd.result));
+        PLAN = r.plan; REVISION = r.revision;
+        guardar();
+      } catch (e) {
+        $('revBox').innerHTML = '<div class="rev"><b class="falta">Ese archivo no es un JSON que pueda leer.</b></div>';
+      }
+    };
+    rd.readAsText(f);
+    ev.target.value = '';
+  };
+
+  $('wipe').onclick = () => {
+    if (!confirm('Borra el plan entero de este navegador. ¿Seguro?')) return;
+    localStorage.removeItem(CLAVE);
+    const r = desdePlan(planVacio());
+    PLAN = r.plan; REVISION = r.revision;
+    pintar();
+  };
+
+  pintar();
+}
+
+if (typeof document !== 'undefined' && document.getElementById('tal')) inicio();
+</script>
+</body>
+</html>

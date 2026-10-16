@@ -6,10 +6,19 @@ fees_rapido.js
 /uploads-tmp/
 /datos/
 
+# fixtures locales para probar sin wallet
+muestra-chica.json
+
+# Modo Merval: tenencias reales salidas del taller. Mismo criterio que arriba —
+# no es una wallet, pero es la comitente entera y no tiene por qué estar en el repo.
+mi-*.json
+plan-*.json
+
 # scratch
 *.tmp
+_build/.humo.html
 .DS_Store
 Thumbs.db
 
-# lo compila GitHub en cada push, no se sube a mano
-/index.html
+# index.html NO va acá: es el artefacto publicado y se sube a mano.
+# No hay automatización — no existe .github/workflows. Ver docs/build.md § Publicar.

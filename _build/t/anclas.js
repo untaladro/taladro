@@ -1,6 +1,6 @@
 require('./stub.js');
-const src=require('fs').readFileSync('/tmp/inline.js','utf8');
-global.__raw=require('/sessions/friendly-modest-noether/mnt/uploads/trade_xyz_2026-07-29 (2).json');
+const src=require('fs').readFileSync(process.env.TALASTRAT_INLINE || '/tmp/inline.js','utf8');
+global.__raw=require('./fixture.js');
 const T='`';
 const extra = T + `
 ;(function(){

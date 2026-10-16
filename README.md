@@ -23,15 +23,16 @@ Listo. A partir de ahí se actualiza solo cada 20 segundos.
 
 ## Qué mide
 
-Cinco hábitos, todos acciones que dependieron de vos:
+Cuatro hábitos, todos acciones que dependieron de vos:
 
 | Hábito | Suma cuando |
 |---|---|
-| Pérdida contenida | la pérdida no supera vez y media tu banda habitual |
-| Corte rápido | la perdedora se cierra antes de los 30 minutos |
+| Pérdida contenida | la pérdida no supera el techo que declaraste — o, si no declaraste ninguno, vez y media tu pérdida promedio reciente |
 | Sin liquidaciones | la posición la cerraste vos y no el exchange |
 | Tamaño consistente | el notional queda cerca de tu mediana |
 | Esperar tu precio | la entrada no cruzó el spread |
+
+Había un quinto, *Corte rápido*: la perdedora cerrada antes de los 30 minutos. Se borró, porque era el único número de la app que no salía ni de tus datos ni de una decisión tuya.
 
 El resultado no entra en ningún hábito. Se puede perder plata con la técnica impecable y ganarla haciendo cualquier cosa, y por eso lo que se mide es la acción.
 

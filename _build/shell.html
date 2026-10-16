@@ -9,26 +9,72 @@
 <meta property="og:description" content="Tu personal trainer de trading. Mira lo que hacés, no lo que ganás.">
 <meta property="og:type" content="website">
 <meta name="theme-color" content="#0a0d11">
+<script>
+/* Va acá arriba a propósito: si el tema se resolviera con el resto del código, la página
+   arrancaría oscura y saltaría a clara un cuadro después. Por defecto sigue al sistema. */
+(function () {
+  var t = null;
+  try { t = localStorage.getItem('taladro_tema'); } catch (e) {}
+  if (t !== 'claro' && t !== 'oscuro') {
+    try { t = matchMedia('(prefers-color-scheme: light)').matches ? 'claro' : 'oscuro'; }
+    catch (e) { t = 'oscuro'; }
+  }
+  document.documentElement.setAttribute('data-tema', t);
+})();
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
+  /* Dos paletas. Los nombres son por rol, no por color: --txt2 es "texto secundario",
+     no "gris claro". Así el tema claro se define cambiando doce valores y nada más.
+     Los rojos y verdes translúcidos no cambian: al ser alfa sobre el fondo, funcionan
+     en los dos temas sin tocarlos. */
   :root{
     --bg:#0a0d11; --panel:#131820; --panel2:#1a212b; --line:#242d3a;
-    --txt:#e6edf3; --mut:#7d8896; --acc:#58a6ff; --up:#3fb950; --down:#f85149; --warn:#d29922;
+    --txt:#e6edf3; --txt2:#b3bdc9; --mut:#7d8896;
+    --acc:#58a6ff; --up:#3fb950; --down:#f85149; --warn:#d29922;
+    --onacc:#06121f; --sombra:#000a; --sombraF:#000c; --velo:#04060a9e;
+    --barraBg:#0d1117f2; --barraHov:#111823f5;
+    --tiltTxt:#e6c3c6; --tiltBg:#f8514914;
+    --trama:#f8514922;
+    --talbg:#131820;
+  }
+  /* Claro. El acento baja de brillo porque #58a6ff sobre blanco no tiene contraste
+     suficiente para texto, y el verde sube de saturación por lo mismo. */
+  html[data-tema="claro"]{
+    --bg:#f4f6f9; --panel:#ffffff; --panel2:#eef1f6; --line:#d5dbe4;
+    --txt:#1a222e; --txt2:#4a5566; --mut:#6b7686;
+    --acc:#1d6fd4; --up:#1a7f37; --down:#cf2c26; --warn:#9a6700;
+    --onacc:#ffffff; --sombra:#1a222e26; --sombraF:#1a222e33; --velo:#1a222e6b;
+    --barraBg:#ffffffee; --barraHov:#f4f6f9f5;
+    --tiltTxt:#8a2b28; --tiltBg:#cf2c260f;
+    --trama:#cf2c2618;
+    /* El taladro se queda en su gris oscuro también en claro: la mecha y las partes
+       metálicas son casi blancas, y sobre blanco desaparecían. Es un personaje con luz
+       propia, no una pieza de la interfaz. */
+    --talbg:#232b36;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
   .wrap{max-width:1280px;margin:0 auto;padding:24px 20px 64px}
   h1{font-size:20px;margin:0 0 2px;letter-spacing:-.3px}
-  .sub{color:var(--mut);font-size:13px;margin-bottom:20px}
+  /* txt2 y no mut: este subtítulo es el único texto que vive sobre --bg en vez de
+     sobre un panel, y ahí mut cae a 4,25 en el tema claro. Se corrige moviendo este
+     elemento, no la paleta: mut es el color de callarse y la distancia que lo separa
+     de txt2 es la jerarquía entre "esto importa" y "esto es una nota al pie". */
+  .sub{color:var(--txt2);font-size:13px;margin-bottom:20px}
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px}
   .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
   input,select,button{font:inherit;background:var(--panel2);color:var(--txt);border:1px solid var(--line);
     border-radius:7px;padding:8px 11px;outline:none}
   input:focus,select:focus{border-color:var(--acc)}
+  /* El outline:none de arriba dejaba a los botones sin ninguna señal de foco: tabulabas
+     por el panel y no sabías dónde estabas parado. :focus-visible solo se enciende en
+     navegación por teclado, así que con el mouse no cambia un pixel. */
+  :focus-visible{outline:2px solid var(--acc);outline-offset:2px}
   input.addr{flex:1;min-width:320px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
   button{cursor:pointer;transition:.12s}
   button:hover{border-color:var(--acc)}
-  button.primary{background:var(--acc);color:#06121f;border-color:var(--acc);font-weight:600}
+  button.primary{background:var(--acc);color:var(--onacc);border-color:var(--acc);font-weight:600}
   button.primary:hover{filter:brightness(1.1)}
   button:disabled{opacity:.5;cursor:not-allowed}
   .status{font-size:13px;color:var(--mut);margin-top:10px;min-height:19px}
@@ -46,8 +92,22 @@
     padding:11px 14px;margin-bottom:9px}
   .ins.bad{border-color:var(--down)} .ins.warn{border-color:var(--warn)}
   .ins.good{border-color:var(--up)} .ins.info{border-color:var(--acc)}
+  /* Ejercicio: la barra es un registro de conducta, no una barra de progreso hacia un
+     premio. Por eso cada casilla se pinta sola y no hay porcentaje al costado. */
+  .ejReglas{display:flex;flex-wrap:wrap;gap:10px 18px;margin-top:12px}
+  .ejChk{font-size:13px;color:var(--txt2);display:flex;align-items:center;gap:6px;cursor:pointer}
+  .ejBarra{display:flex;flex-wrap:wrap;gap:4px;margin:12px 0}
+  .ejP{width:14px;height:14px;border-radius:3px;background:var(--up)}
+  .ejP.no{background:var(--down)} .ejP.vac{background:var(--panel2);border:1px solid var(--line)}
+  .decl{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+  .insGrupo{margin-top:18px} .insGrupo:first-child{margin-top:0}
+  .insH{font-size:12px;margin:0 0 10px;color:var(--txt2);text-transform:uppercase;
+    letter-spacing:.6px;font-weight:600}
+  .insH .mut{text-transform:none;letter-spacing:0;font-weight:400}
+  .mlista{margin:12px 0 0;padding-left:18px;font-size:13px;line-height:1.9}
+  .mlista li{margin:0}
   .ins .t{font-weight:600;margin-bottom:3px}
-  .ins .d{color:#b3bdc9;font-size:13px}
+  .ins .d{color:var(--txt2);font-size:13px}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
   @media(max-width:860px){.grid2{grid-template-columns:1fr}}
   canvas{max-height:260px}
@@ -60,7 +120,7 @@
   .scroll{max-height:460px;overflow:auto}
   .tag{display:inline-block;padding:1px 6px;border-radius:4px;font-size:11px;background:var(--panel2)}
   .hide{display:none}
-  .tag.liq{background:#f8514922;color:var(--down);border:1px solid #f8514955;font-weight:600}
+  .tag.liq{background:var(--trama);color:var(--down);border:1px solid #f8514955;font-weight:600}
   #resumen{margin-bottom:12px}
   .r{background:var(--panel);border:1px solid var(--line);border-radius:10px;
      padding:16px 18px;margin-bottom:8px;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
@@ -71,13 +131,65 @@
   .r.aviso{border-left:3px solid var(--warn);display:block}
   .r.aviso.bad{border-left-color:var(--down)}
   .r.aviso .t{font-weight:600;margin-bottom:2px}
-  .r.aviso .d{font-size:13px;color:#b3bdc9}
+  .r.aviso .d{font-size:13px;color:var(--txt2)}
   #verMas{width:100%;margin-bottom:16px;color:var(--mut)}
+  /* ===== El orden de la portada lo manda el momento, no el orden del archivo =====
+     Los paneles son hermanos y se apilaban como están escritos, así que con una posición
+     abierta lo primero de la pantalla eran la franja y la tira. La franja es, por su propio
+     comentario en `renderFranja`, "tu espejo justo antes de entrar": con plata puesta ya no
+     es el espejo de nada, y en 360px se comía 160px arriba del stop. Bajan las dos.
+
+     Es `order` y no mover nodos porque franja y tira no tienen nada focusable adentro
+     —`data-tal` es hover— así que el orden de tabulado no se parte. **Si algún día se les
+     mete un botón, esto pasa a ser un bug de teclado y hay que mover el DOM de verdad.**
+
+     `#app:not(.hide)` y no `#app`: `.hide` es un selector de clase y `#app` uno de id, así
+     que `#app{display:flex}` le ganaba a `.hide{display:none}` y la app aparecía antes de
+     que hubiera un solo dato. */
+  #app:not(.hide){display:flex;flex-direction:column}
+  #muestraPanel{order:5}
+  #franja{order:10} #resumen{order:11}
+  #tiltPanel{order:12} #airePanel{order:13} #enTrade{order:14}
+  #despPanel{order:13} #postCheck{order:14} #prepPanel{order:15} #ejercPanel{order:16}
+  #verMas{order:30} #detalle{order:31}
+  /* Se mueven esas dos y nada más. El tilt y el aire se quedan arriba a propósito: existen
+     para interrumpir, y tener una posición abierta no es motivo para callarlos —el tilt
+     habla de la que sigue, no de la que ya está puesta. */
+  #app.dentro #franja{order:20} #app.dentro #resumen{order:21}
+
+  /* ===== Dos columnas en desktop (5.5) =====
+     `.col` es `display:contents` por defecto, así que en mobile los dos envoltorios no
+     existen para el layout: los paneles vuelven a ser hijos directos del flex de `#app` y
+     el `order` de arriba sigue mandando. **Toda la pila de mobile es el caso por defecto y
+     el de dos columnas es la excepción**, que es al revés de como se escribiría solo, pero
+     es lo que hace que agregar un panel nuevo no requiera pensar en desktop.
+
+     La izquierda va primera en el DOM y no es cosmético: el auto-placement de grid no
+     retrocede, así que con la derecha adelante la izquierda caería una fila más abajo.
+
+     Lo que este cambio desactiva, y conviene saberlo: hoy el orden vertical **es** el
+     mecanismo que dice qué importa ahora, y por eso `#app.dentro` reordena. Con dos
+     columnas todo entra arriba del pliegue y mover algo de lugar deja de significar nada.
+     No hace falta compensarlo: `#enTrade` ya es lo primero de la columna izquierda, así
+     que con una posición abierta la decisión **es** esa posición sin reordenar nada. Las
+     reglas de `.dentro` quedan como no-op acá —`franja` y `resumen` son hermanos adentro de
+     `.col-der` y su orden relativo no cambia— y eso es correcto, no un descuido.
+     Cuando llegue 4.7 con `momento()`, esto pasa a decidirse por slot y no por orden. */
+  .col{display:contents}
+  @media(min-width:1000px){
+    #app:not(.hide){display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);
+      column-gap:16px;align-items:start}
+    .col{display:flex;flex-direction:column;gap:12px;min-width:0}
+    .col-izq{grid-column:1} .col-der{grid-column:2}
+    /* Ancho completo: el aviso de muestra porque enmarca todo, el tilt y el aire porque
+       existen para interrumpir, y el detalle porque son tablas y gráficos. */
+    #muestraPanel,#tiltPanel,#airePanel,#verMas,#detalle{grid-column:1/-1}
+  }
   /* ---- Taladro flotante ---- */
   .tal{position:fixed;right:20px;bottom:20px;z-index:60;display:flex;flex-direction:column;
     align-items:flex-end;gap:9px;max-width:min(370px,calc(100vw - 40px))}
   .globo{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:13px 30px 13px 15px;
-    font-size:13.5px;line-height:1.55;box-shadow:0 10px 34px #000a;position:relative;display:none;color:#dbe3ec}
+    font-size:13.5px;line-height:1.55;box-shadow:0 10px 34px var(--sombra);position:relative;display:none;color:var(--txt2)}
   .tal.habla .globo{display:block;animation:aparece .18s ease-out}
   @keyframes aparece{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
   .globo:after{content:"";position:absolute;right:40px;bottom:-7px;width:12px;height:12px;background:var(--panel);
@@ -92,8 +204,8 @@
   .tal.seco .globo .et{color:var(--warn)}
   .cierra{position:absolute;top:5px;right:9px;color:var(--mut);cursor:pointer;font-style:normal;font-size:16px;line-height:1}
   .cierra:hover{color:var(--txt)}
-  .cuerpo{background:var(--panel);border:1px solid var(--line);border-radius:20px;width:86px;height:66px;padding:0;
-    display:grid;place-items:center;cursor:pointer;box-shadow:0 6px 22px #000a}
+  .cuerpo{background:var(--talbg);border:1px solid var(--line);border-radius:20px;width:86px;height:66px;padding:0;
+    display:grid;place-items:center;cursor:pointer;box-shadow:0 6px 22px var(--sombra)}
   .tal.alerta .cuerpo{border-color:var(--down)} .tal.seco .cuerpo{border-color:var(--warn)}
   .tal.ok .cuerpo{border-color:var(--up)}
   .cuerpo svg{width:76px;height:56px;color:var(--mut);transition:color .3s;overflow:visible}
@@ -122,14 +234,15 @@
   @keyframes parpadeo{0%,92%,100%{transform:scaleY(1)}94.5%,96.5%{transform:scaleY(.1)}}
 
   /* ---- ventana emergente, no toma de pantalla ---- */
-  .foco{position:fixed;inset:0;z-index:80;display:none;background:#04060a9e;backdrop-filter:blur(2px);
+  .foco{position:fixed;inset:0;z-index:80;display:none;background:var(--velo);backdrop-filter:blur(2px);
     align-items:center;justify-content:center;padding:20px}
   .foco.on{display:flex}
   .fcaja{display:flex;gap:20px;align-items:center;max-width:580px;background:var(--panel);
-    border:1px solid var(--line);border-radius:16px;padding:20px 24px;box-shadow:0 24px 64px #000c;
+    border:1px solid var(--line);border-radius:16px;padding:20px 24px;box-shadow:0 24px 64px var(--sombraF);
     animation:entra .26s cubic-bezier(.2,1.3,.4,1);cursor:pointer}
   @keyframes entra{from{opacity:0;transform:translateY(12px) scale(.95)}to{opacity:1;transform:none}}
-  .fcaja svg{width:148px;height:auto;flex-shrink:0;color:var(--mut);overflow:visible}
+  .fcaja svg{width:148px;height:auto;flex-shrink:0;color:var(--mut);overflow:visible;
+    background:var(--talbg);border-radius:14px;padding:8px 10px;box-sizing:content-box}
   .foco.alerta .fcaja{border-color:var(--down)} .foco.seco .fcaja{border-color:var(--warn)}
   .foco.ok .fcaja{border-color:var(--up)} .foco.info .fcaja{border-color:var(--acc)}
   .foco.alerta .fcaja svg{color:var(--down)} .foco.seco .fcaja svg{color:var(--warn)}
@@ -146,7 +259,7 @@
   .foco.alerta .fet{color:var(--down)}
   .ftx{font-size:16.5px;line-height:1.5;letter-spacing:-.15px;color:var(--txt)}
   #facc:not(:empty){margin-top:14px}
-  .fbtn{background:var(--acc);color:#06121f;border:none;border-radius:8px;padding:9px 16px;
+  .fbtn{background:var(--acc);color:var(--onacc);border:none;border-radius:8px;padding:9px 16px;
     font:inherit;font-size:13px;font-weight:600;cursor:pointer}
   .fbtn:hover{filter:brightness(1.1)}
   .foco.ok .fbtn{background:var(--up)} .foco.seco .fbtn{background:var(--warn)}
@@ -156,11 +269,22 @@
   @media(max-width:560px){.fcaja{flex-direction:column;text-align:center}.fcaja svg{width:104px}}
   .tal.tiltmode .cuerpo{border-color:var(--down);animation:pulsa 1.7s ease-in-out infinite}
   .tal.tiltmode .globo{border-color:var(--down)}
-  @keyframes pulsa{0%,100%{box-shadow:0 6px 22px #000a,0 0 0 0 #f8514955}
-    55%{box-shadow:0 6px 22px #000a,0 0 0 9px #f8514900}}
+  @keyframes pulsa{0%,100%{box-shadow:0 6px 22px var(--sombra),0 0 0 0 #f8514955}
+    55%{box-shadow:0 6px 22px var(--sombra),0 0 0 9px #f8514900}}
   .tal.tiltmode .flota{animation:tiembla .4s ease-in-out infinite}
+  /* El aire es el espejo exacto del tilt también acá: el tilt tiembla, vibra y late;
+     el aire apaga las tres cosas. Va después de `.tal.habla` y `.tal.enpos` a propósito:
+     misma especificidad, gana el último, así que hablando o con posición abierta
+     tampoco vibra. La respiración es lo único que queda, y más lenta. */
+  .tal.airemode .cuerpo svg{animation:none}
+  .tal.airemode .flota{animation:flota 7s ease-in-out infinite}
   .bit{stroke-dasharray:2.5 2.5}
   .tal.habla .bit{animation:gira .45s linear infinite}
+  /* La mecha gira, pero lenta: detenerla del todo borraba la señal de que hay plata
+     puesta. Con posición abierta acelera un poco y sigue muy por debajo del .7s normal,
+     así que el estado se lee igual sin que el personaje se ponga urgente. */
+  .tal.airemode .bit{animation:gira 2.6s linear infinite}
+  .tal.airemode.enpos .bit{animation:gira 1.4s linear infinite}
   @keyframes gira{to{stroke-dashoffset:-5}}
   /* ---- hábitos ---- */
   .hab{display:grid;grid-template-columns:1fr 120px 190px;gap:14px;align-items:center;
@@ -172,6 +296,9 @@
   .hab .dots{display:flex;gap:2px}
   .hab .dots i{flex:1;height:9px;border-radius:2px;background:var(--panel2)}
   .hab .dots i.s{background:var(--up)} .hab .dots i.n{background:var(--down);opacity:.75}
+  /* Tercer estado: la operación que no se pudo juzgar. Ni verde ni roja — el color de
+     callarse, que es justo lo que la app tiene que hacer cuando le falta el dato. */
+  .hab .dots i.sd{background:transparent;box-shadow:inset 0 0 0 1px var(--mut);opacity:.55}
   .hab .hb{height:5px;background:var(--panel2);border-radius:4px;overflow:hidden}
   .hab .hb div{height:100%;background:var(--up);border-radius:4px;transition:width .4s}
   .hab.roto .hb div{background:var(--warn)}
@@ -193,7 +320,7 @@
   tr.ed textarea:focus{border-color:var(--acc);outline:none}
   #archivo{font-size:12px}
   .rf{display:grid;grid-template-columns:150px 1fr 48px;gap:12px;align-items:center;padding:6px 0}
-  .rf .rk{font-size:13px;color:#b3bdc9}
+  .rf .rk{font-size:13px;color:var(--txt2)}
   .rf .rb{height:12px;background:var(--panel2);border-radius:6px;overflow:hidden}
   .rf .rb div{height:100%;background:linear-gradient(90deg,var(--warn),var(--down));border-radius:6px;transition:width .5s}
   .rf .rp{font-size:14px;font-weight:600;text-align:right}
@@ -202,7 +329,7 @@
   .pbf{height:100%;border-radius:7px;transition:width .5s}
   .pbf.up{background:var(--up)} .pbf.warn{background:var(--warn)} .pbf.down{background:var(--down)}
   .pbm{position:absolute;left:66%;top:-3px;bottom:-3px;width:2px;background:var(--txt);opacity:.55}
-  .pl{font-size:12.5px;color:#b3bdc9;margin-top:7px}
+  .pl{font-size:12.5px;color:var(--txt2);margin-top:7px}
   .ult{display:flex;align-items:flex-end;gap:5px;margin-top:9px}
   .ult .k{font-size:10.5px;color:var(--mut);white-space:nowrap;padding-bottom:1px}
   .ult .k:last-child{margin-left:4px}
@@ -212,19 +339,38 @@
   /* el alta de wallet ocupa toda la pantalla una sola vez; después se hace una línea */
   .chip{display:none;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;
     color:var(--mut);background:var(--panel2);border:1px solid var(--line);border-radius:20px;padding:6px 13px}
-  #cambiar{display:none}
-  #setup.compacto{padding:9px 14px;margin-bottom:12px}
+  /* El chip es el botón que despliega el alta entera: hace lo que hacía "Cambiar wallet",
+     que era un segundo control para la misma acción a diez pixeles del primero. El ▸ va en
+     ::after y no en el texto porque el textContent lo escribe `ingest` con la dirección y
+     no sabe nada de esto. */
+  button.chip{cursor:pointer;transition:.12s}
+  button.chip:hover{border-color:var(--acc);color:var(--txt2)}
+  button.chip:after{content:'▸';margin-left:9px;opacity:.55}
+  #setup:not(.compacto) button.chip:after{content:'▾'}
+  /* "Compacto" era ocho elementos bajados a cinco, y cinco en 360px son tres filas y
+     132px de alto: más que todo lo que quedaba visible de una posición abierta debajo.
+     Ahora es una línea. Quedan dos cosas, y las dos por el mismo criterio —¿esto cambia
+     lo que hago en los próximos treinta segundos?—: el chip, que es la salida de acá, y
+     el indicador de vivo, que es lo único que cambia el significado de todo lo de abajo.
+     Si dejó de actualizarse, los números que estás mirando son de otro momento. */
+  #setup.compacto{padding:7px 13px;margin-bottom:12px}
   #setup.compacto .addr,#setup.compacto #go,#setup.compacto #loadBtn,
-  #setup.compacto #saveBtn,#setup.compacto #linkBtn,#setup.compacto #hint{display:none}
-  #setup.compacto .chip,#setup.compacto #cambiar{display:inline-flex}
-  #setup.compacto #status{margin:0;font-size:11.5px;opacity:.75}
-  #setup.compacto .row{gap:8px}
+  #setup.compacto #saveBtn,#setup.compacto #linkBtn,#setup.compacto #hint,
+  #setup.compacto #btnVivo,#setup.compacto #archivo,#setup.compacto #status{display:none}
+  /* El error es la única excepción: si el vivo se cayó o la wallet contesta mal, eso tiene
+     que verse con el panel plegado. Sin esta línea, plegar el alta la deja muda justo
+     cuando tiene algo que decir. `say()` reescribe className entero, así que la clase err
+     se pone y se saca sola y acá no hay estado que mantener. */
+  #setup.compacto #status.err{display:block;margin:0;font-size:11.5px}
+  #setup.compacto .chip{display:inline-flex}
+  #setup.compacto .row{gap:10px}
   #calc{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:14px 0 4px}
   #calc div{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
   #calc div span{display:block;font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
   #calc div b{font-size:19px;font-weight:600}
+  #calc div small{display:block;font-size:10.5px;line-height:1.35;margin-top:2px}
   #calc div.mal{border-color:var(--down)}
-  #prepNotas div{font-size:12.5px;color:#b3bdc9;padding:4px 0 4px 17px;position:relative}
+  #prepNotas div{font-size:12.5px;color:var(--txt2);padding:4px 0 4px 17px;position:relative}
   #prepNotas div:before{content:"·";position:absolute;left:5px;color:var(--acc);font-weight:700}
   #vivo{font-size:12px}
   /* ---- densidad: números en mono, filas finas, cero aire de más ---- */
@@ -238,12 +384,52 @@
   /* la plata se difumina: no se puede correr atrás de lo que no ves */
   body.tiltpage .plata{filter:blur(9px);opacity:.55;transition:filter .3s,opacity .3s;user-select:none}
   body.tiltpage.destapado .plata{filter:none;opacity:1}
+  /* En aire se difumina menos: no es que no puedas mirarla, es que no informa. */
+  body.airepage .plata{filter:blur(6px);opacity:.62;transition:filter .3s,opacity .3s;user-select:none}
+  body.airepage.destapado .plata{filter:none;opacity:1}
+
+  /* ===== prefers-reduced-motion (5.3) =====
+     Keyframe por keyframe y nunca `animation:none` global. Un bloque general apagaría el
+     tilt entero sin avisar, y ese debate ya está resuelto en la otra punta de este archivo:
+     detener la mecha se probó y borraba la señal de que hay plata puesta.
+
+     El criterio es qué lleva la animación. Lo que es pura oscilación se apaga; lo que
+     **es** una señal se ralentiza pero sigue; y lo que lleva el estado sin moverse —el
+     tinte rojo, el desenfoque de la plata, la cara furiosa— no se toca, porque nada de eso
+     depende del movimiento para decir lo que dice. Un usuario con la preferencia activa
+     tiene que seguir viendo que está en tilt. */
+  @media (prefers-reduced-motion: reduce){
+    /* Pura oscilación: fuera. */
+    .tal.habla .cuerpo svg{animation:none}
+    .ojos{animation:none}
+    .foco.alerta .fcaja .flota{animation:none}
+    .foco.ok .fcaja .flota{animation:none}
+    .tal.tiltmode .flota{animation:none}
+    body.tiltpage::after{animation:none;opacity:1}
+    .tal.tiltmode .cuerpo{animation:none}
+    /* Transiciones de entrada: instantáneas, no ausentes. */
+    .tal.habla .globo{animation:aparece .01s linear}
+    .foco .fcaja{animation:entra .01s linear}
+    /* Señales: se ralentizan, no se apagan. La respiración dice que está vivo y la mecha
+       dice que hay plata puesta — son las dos cosas que no se pueden dejar de decir. */
+    .flota{animation-duration:16s}
+    .tal.airemode .flota{animation-duration:22s}
+    .tal.enpos .bit{animation-duration:4s}
+    .tal.habla .bit{animation-duration:3s}
+    .fcaja .bit{animation-duration:3s}
+    .tal.airemode .bit{animation-duration:9s}
+    .tal.airemode.enpos .bit{animation-duration:5s}
+  }
+  #airePanel{border-color:var(--up);box-shadow:0 0 0 1px #3fb95022 inset}
+  #airePanel h2{color:var(--up)}
+  .am{font-size:13.5px;line-height:1.55;color:var(--txt2);padding:7px 12px;background:#3fb95014;
+    border-left:3px solid var(--up);border-radius:0 7px 7px 0;margin-bottom:6px}
   .barra{position:fixed;top:0;left:0;right:0;z-index:40;display:flex;align-items:center;gap:14px;
-    background:#0d1117f2;backdrop-filter:blur(8px);border:0;border-bottom:1px solid var(--line);
+    background:var(--barraBg);backdrop-filter:blur(8px);border:0;border-bottom:1px solid var(--line);
     padding:8px 20px;transform:translateY(-102%);transition:transform .22s ease;cursor:pointer;
     font:inherit;color:var(--mut);text-align:left}
   .barra.ver{transform:none}
-  .barra:hover{background:#111823f5}
+  .barra:hover{background:var(--barraHov)}
   .minilogo{flex-shrink:0;display:block}
   .bsep{width:1px;height:18px;background:var(--line)}
   #bctx{font-size:12.5px;display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;min-width:0}
@@ -251,8 +437,14 @@
   .bup{margin-left:auto;font-size:11px;opacity:.55;white-space:nowrap}
   .barra:hover .bup{opacity:1;color:var(--acc)}
   @media(max-width:600px){.barra{gap:9px;padding:7px 13px}.bsep{display:none}#bctx{font-size:11.5px}}
-  .marca{margin:0 0 6px;line-height:0}
+  .marca{margin:0 0 6px;line-height:0;display:flex;align-items:center;gap:12px}
   .logo{display:block;height:48px;width:auto;max-width:100%}
+  /* El interruptor de tema queda arriba a la derecha y es el único botón redondo
+     de la página: no se confunde con nada que toque los datos. */
+  .tema{margin-left:auto;flex:none;width:34px;height:34px;border-radius:50%;padding:0;
+    display:grid;place-items:center;font-size:15px;line-height:1;background:var(--panel);
+    border:1px solid var(--line);color:var(--mut)}
+  .tema:hover{color:var(--txt);border-color:var(--acc)}
   .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums;
     letter-spacing:-.02em}
   .franja{border:1px solid var(--line);border-radius:11px;overflow:hidden;margin-bottom:10px;background:var(--panel)}
@@ -291,9 +483,9 @@
   #tiltPanel{border-color:var(--down);box-shadow:0 0 0 1px #f8514933 inset}
   #tiltPanel h2{color:var(--down)}
   .tq{font-size:10.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--mut);margin:12px 0 7px}
-  .tm{font-size:13.5px;color:#e6c3c6;padding:7px 12px;background:#f8514914;border-left:3px solid var(--down);
+  .tm{font-size:13.5px;color:var(--tiltTxt);padding:7px 12px;background:var(--tiltBg);border-left:3px solid var(--down);
     border-radius:0 7px 7px 0;margin-bottom:6px}
-  .tsal{font-size:13.5px;line-height:1.55;color:#b9c3d0}
+  .tsal{font-size:13.5px;line-height:1.55;color:var(--txt2)}
   .tspec{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
   .tspec div{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:9px 12px}
   .tspec span{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut);margin-bottom:3px}
@@ -312,30 +504,83 @@
   .eng div{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:14px}
   .eng div span{display:block;font-size:10.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
   .anc{font-size:13px;line-height:1.55;padding:9px 12px;border-left:3px solid var(--line);
-    background:var(--panel2);border-radius:0 8px 8px 0;margin-bottom:7px;color:#b9c3d0}
+    background:var(--panel2);border-radius:0 8px 8px 0;margin-bottom:7px;color:var(--txt2)}
   .anc.good{border-color:var(--up)} .anc.warn{border-color:var(--warn)}
   .anc.bad{border-color:var(--down)} .anc.info{border-color:var(--acc)}
   .mej{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--acc);
     border-radius:0 10px 10px 0;padding:13px 15px;margin:12px 0 4px}
   .mej .mt{font-size:10.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.6px}
   .mej .mb{font-size:17px;font-weight:600;margin:5px 0 6px;letter-spacing:-.2px}
-  .mej .mn{font-size:12.5px;color:#b3bdc9}
+  .mej .mn{font-size:12.5px;color:var(--txt2)}
   .mej .mu{font-size:12px;color:var(--mut);margin-top:7px;padding-top:7px;border-top:1px solid var(--line)}
   .mej.n2{border-left-color:var(--warn)} .mej.n3{border-left-color:var(--down)}
   .mej.n3 .mt{color:var(--down)}
   .mej .mv{font-size:12.5px;margin-top:9px;padding:7px 10px;border-radius:7px;background:var(--panel)}
-  .mej .mv.ok{color:var(--up)} .mej .mv.no{color:var(--warn)}
+  .mej .mv.ok{color:var(--up)} .mej .mv.no{color:var(--warn)} .mej .mv.mut{color:var(--mut)}
   .mej .fbtn{margin-top:11px}
+  /* El techo declarado (3.1). Sin color propio y sin borde de estado: es una decisión
+     tuya anotada, no un semáforo. `deriva` sube el contraste del texto y nada más —
+     ponerle rojo lo convertiría en un reproche por un número que vos elegiste. */
+  /* 4.3 — El chequeo emocional. Tres ángulos del mismo dibujo, en fila.
+     Dos reglas que no son estéticas y que si se rompen devuelven el bloqueo del ítem:
+     **el dibujo de entrada no toma el rojo de PALETA.tilt** —el color es un canal de
+     salida y pisarlo hace que dos fuentes compitan por el mismo trazo— y **no se anima**,
+     porque el movimiento es el otro canal que la salida ya usa (`flota`, `gira`, `tiembla`).
+     Un `transition` de opacidad al elegir no es animar el dibujo: no lo mueve ni lo tiñe. */
+  /* 4.5 — el mapa del día. **Anillo y no gajos radiales**: "Cuándo operás" ya usa gajos
+     que crecen con la frecuencia y se pintan por PnL, y dos relojes casi idénticos con
+     variables opuestas se confunden — gana el que tiene los colores más fuertes. Acá el
+     grosor es constante y no significa nada a propósito; lo único que codifica es el color,
+     y el color es adherencia.
+     Tres tonos y un gris, sin gradiente continuo: con celdas de cinco juicios un degradé
+     sugiere una precisión que la muestra no tiene. */
+  .mapa{margin-top:6px}
+  .msvg{width:100%;max-width:260px;margin:0 auto;display:block}
+  .ma.ok{fill:var(--up);opacity:.8}
+  .ma.medio{fill:var(--warn);opacity:.7}
+  .ma.roto{fill:var(--down);opacity:.75}
+  .ma.plano{fill:var(--mut);opacity:.45}
+  .ma.sd{fill:var(--line)}
+  .mop{fill:var(--mut)}
+  .mahora{stroke:var(--txt);stroke-width:2;stroke-linecap:round}
+  .mh{font-size:9.5px;fill:var(--mut);text-anchor:middle}
+  .mc{font-size:19px;fill:var(--txt);text-anchor:middle;font-weight:600}
+  .mc2{font-size:9.5px;fill:var(--mut);text-anchor:middle}
+  /* 4.7 — el estado "recién cerraste". Sin color de fondo: no es una alerta ni un
+     premio, es un hecho que ya pasó. */
+  .dqp{display:flex;gap:18px;flex-wrap:wrap;margin-top:6px}
+  .dqp>div{display:flex;flex-direction:column;gap:2px}
+  .dqp .k{font-size:11px;color:var(--mut)}
+  /* 4.1 — el hueco abierto. `--mut` fijo y sin ninguna regla que lo cambie de color:
+     el día que alguien le ponga un umbral y un rojo, dejó de medir y pasó a reprochar. */
+  .hueco{margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:12px;line-height:1.6}
+  .pchk{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+  .pcq{font-size:13.5px;margin-bottom:10px}
+  .pcfila{display:flex;gap:10px;align-items:flex-end}
+  .pcb{flex:1;background:none;border:1px solid var(--line);border-radius:10px;
+    padding:8px 4px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
+  .pcb:hover{border-color:var(--mut)}
+  .pcb:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+  .pcb.on{border-color:var(--acc);background:var(--panel2)}
+  .pcb span{font-size:11px;color:var(--mut)}
+  .pcb.on span{color:var(--txt)}
+  .tinc{width:100%;max-width:56px;height:auto;opacity:.55;transition:opacity .12s}
+  .pcb:hover .tinc,.tinc.on{opacity:1}
+  @media (prefers-reduced-motion:reduce){ .tinc{transition:none} }
+
+  .bdec{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+  .bdec .hint{margin-top:8px}
+  .bdec.deriva .hint{color:var(--txt2)}
   @media(max-width:700px){.hab{grid-template-columns:1fr;gap:6px}.hab .hv{text-align:left}}
   #rules{margin-top:14px;border-top:1px solid var(--line);padding-top:13px}
-  #rules div{color:#b3bdc9;font-size:13px;padding:4px 0 4px 18px;position:relative}
+  #rules div{color:var(--txt2);font-size:13px;padding:4px 0 4px 18px;position:relative}
   #rules div:before{content:"→";position:absolute;left:0;color:var(--acc)}
   #sessNow b{color:var(--acc)}
   #tAdh td.d{font-size:11px}
   .seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
   .seg button{border:0;border-radius:0;background:var(--panel2);padding:8px 14px}
   .seg button+button{border-left:1px solid var(--line)}
-  .seg button.on{background:var(--acc);color:#06121f;font-weight:600}
+  .seg button.on{background:var(--acc);color:var(--onacc);font-weight:600}
   #sessStrip{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:8px;margin:14px 0}
   .ss{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:9px 11px}
   .ss.now{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc) inset}
@@ -348,7 +593,7 @@
   .pos .hd .sym{font-size:16px;font-weight:600}
   .pos .g{display:grid;grid-template-columns:repeat(auto-fit,minmax(108px,1fr));gap:8px 14px;margin-bottom:9px}
   .pos .g div span{display:block;font-size:11px;color:var(--mut)}
-  .pos .a{font-size:12.5px;padding:3px 0 3px 16px;position:relative;color:#b3bdc9}
+  .pos .a{font-size:12.5px;padding:3px 0 3px 16px;position:relative;color:var(--txt2)}
   .pos .a:before{content:"●";position:absolute;left:0;font-size:9px;top:5px}
   .pos .a.bad:before{color:var(--down)} .pos .a.warn:before{color:var(--warn)}
   .pos .a.good:before{color:var(--up)} .pos .a.info:before{color:var(--acc)}
@@ -359,14 +604,14 @@
 <!-- barra fija: aparece al bajar, el logo vuelve al tope y de paso lleva el contexto encima -->
 <button id="barra" class="barra" title="Volver arriba">
   <svg class="minilogo" width="112" height="24" viewBox="0 0 252 52" aria-hidden="true">
-    <circle cx="26" cy="26" r="19" fill="none" stroke="#3fb950" stroke-width="2.4"/>
-    <g transform="translate(16.4 19.2) scale(.62)" fill="none" stroke="#3fb950"
+    <circle cx="26" cy="26" r="19" fill="none" stroke="var(--up,#3fb950)" stroke-width="2.4"/>
+    <g transform="translate(16.4 19.2) scale(.62)" fill="none" stroke="var(--up,#3fb950)"
        stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
       <rect x="0" y="0" width="19" height="14" rx="6"/>
       <path d="M5 14 L4 22 h7 L13 14"/><path d="M19 4.5 h4 v5 h-4"/>
       <path d="M23 7 H31" stroke-dasharray="2.4 2.4"/>
     </g>
-    <text x="58" y="33" fill="#e6edf3" font-size="24" font-weight="700"
+    <text x="58" y="33" fill="var(--txt,#e6edf3)" font-size="24" font-weight="700"
           font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif">Talastrat</text>
   </svg>
   <span class="bsep"></span>
@@ -374,35 +619,37 @@
   <span class="bup">▲ arriba</span>
 </button>
 
-<div class="wrap">
+<main class="wrap">
 
   <h1 class="marca">
     <!-- el logotipo lleva todo por atributo: si algún día falla el CSS, igual se ve bien -->
     <svg class="logo" width="234" height="48" viewBox="0 0 252 52"
          xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Talastrat">
-      <circle cx="26" cy="26" r="19" fill="none" stroke="#3fb950" stroke-width="2.4"/>
-      <g transform="translate(16.4 19.2) scale(.62)" fill="none" stroke="#3fb950"
+      <circle cx="26" cy="26" r="19" fill="none" stroke="var(--up,#3fb950)" stroke-width="2.4"/>
+      <g transform="translate(16.4 19.2) scale(.62)" fill="none" stroke="var(--up,#3fb950)"
          stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
         <rect x="0" y="0" width="19" height="14" rx="6"/>
         <path d="M5 14 L4 22 h7 L13 14"/>
         <path d="M19 4.5 h4 v5 h-4"/>
         <path d="M23 7 H31" stroke-dasharray="2.4 2.4"/>
       </g>
-      <text x="58" y="25" fill="#e6edf3" font-size="21" font-weight="700" letter-spacing=".3"
+      <text x="58" y="25" fill="var(--txt,#e6edf3)" font-size="21" font-weight="700" letter-spacing=".3"
             font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif">Talastrat</text>
-      <text x="59" y="39" fill="#7d8896" font-size="8.8" letter-spacing="1.4"
+      <text x="59" y="39" fill="var(--mut,#7d8896)" font-size="8.8" letter-spacing="1.4"
             font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">PERSONAL TRAINER DE TRADING</text>
     </svg>
+    <button class="tema" id="tema" title="Cambiar entre claro y oscuro" aria-label="Cambiar tema"></button>
   </h1>
   <div class="sub" id="lema">Mira lo que hacés, no lo que ganás: sostiene lo que ya te sale bien y te avisa
     antes de las que se pagan caro. Nada de consejos de mercado.</div>
 
   <div class="panel" id="setup">
     <div class="row">
-      <span class="chip" id="chip"></span>
-      <input class="addr" id="addr" placeholder="0x… dirección de la wallet" spellcheck="false">
+      <button class="chip" id="chip" aria-expanded="false" aria-controls="setup"
+              title="Cambiar de wallet, pausar el vivo o cargar un archivo"></button>
+      <input class="addr" id="addr" placeholder="0x… dirección de la wallet"
+             aria-label="Dirección de la wallet, empieza con 0x" spellcheck="false">
       <button class="primary" id="go">Analizar</button>
-      <button id="cambiar">Cambiar wallet</button>
       <button id="btnVivo" disabled>▶ En vivo</button>
       <button id="loadBtn">Cargar JSON</button>
       <button id="saveBtn" disabled>Guardar copia</button>
@@ -411,14 +658,13 @@
       <span class="mut" id="archivo"></span>
       <input type="file" id="file" accept=".json" class="hide">
     </div>
-    <div class="status" id="status"></div>
+    <div class="status" id="status" role="status" aria-live="polite"></div>
     <div class="hint" id="hint"></div>
   </div>
 
   <div id="app" class="hide">
 
-    <div id="franja"></div>
-    <div id="resumen"></div>
+    <div class="panel hide" id="muestraPanel"></div>
 
     <div class="panel hide" id="tiltPanel">
       <div class="row" style="justify-content:space-between;align-items:baseline">
@@ -433,6 +679,29 @@
         estadísticamente normales. Lo que lo activa es la racha más señales de que el proceso se rompió.</div>
     </div>
 
+    <div class="panel hide" id="airePanel">
+      <div class="row" style="justify-content:space-between;align-items:baseline">
+        <h2 style="margin:0">Modo aire</h2>
+        <span class="mut" id="aireRacha"></span>
+      </div>
+      <div id="aireQue"></div>
+      <div id="aireSpec"></div>
+      <div id="airePie"></div>
+      <button id="destaparAire" class="tdest">Mostrar los números igual</button>
+      <div class="hint"><b>Fallar no es perder.</b> Fallar es salirse del sistema, y se cuenta de cuatro
+        formas: romper la regla (pérdida fuera de banda, liquidación, tamaño fuera de rango), un día de
+        ráfaga, un hueco largo sin operar, o un salto abrupto de tamaño. Los umbrales salen de tu propia
+        historia — tu mediana diaria, tu hueco típico, tu tamaño de siempre —, no de una tabla.
+        Entran dos fallas en treinta, pero si la última se sale, el modo se apaga.
+        Tampoco se enciende si tu expectativa por operación es negativa: ahí la indiferencia al resultado
+        no se apoya en ningún número.</div>
+    </div>
+
+    <!-- 5.5 — Las dos columnas de desktop. En mobile los .col son `display:contents`,
+         asi que estos divs desaparecen y todo vuelve a ser la pila de siempre, ordenada
+         por `order`. La izquierda va primera en el DOM porque el auto-placement de grid
+         no retrocede: con la derecha adelante, la izquierda caeria una fila mas abajo. -->
+    <div class="col col-izq">
     <div class="panel hide" id="enTrade">
       <div class="row" style="justify-content:space-between;align-items:baseline">
         <h2 style="margin:0">En posición</h2>
@@ -449,16 +718,30 @@
         <span class="mut" id="prepSes"></span>
       </div>
       <div id="mejorar"></div>
+      <div id="bandaDecl"></div>
       <div class="row" style="margin-top:12px">
         <label class="campo">Stop planeado <input id="stopPct" type="number" step="0.05" min="0.05" value="1"> %</label>
         <label class="campo">Riesgo máximo <input id="riesgo" type="number" step="0.01" min="0.01"> USD</label>
       </div>
       <div id="calc"></div>
       <div id="presu"></div>
+      <div id="declarar"></div>
+      <div id="preCheck"></div>
+      <div id="huecoAb"></div>
       <div id="prepNotas"></div>
     </div>
+    <div class="panel hide" id="despPanel"></div>
+    <div class="panel hide" id="postCheck"></div>
+    <div class="panel hide" id="ejercPanel"></div>
+    </div>
 
-    <button id="verMas">Ver los números</button>
+    <div class="col col-der">
+      <div id="franja"></div>
+      <div id="mapaDia"></div>
+      <div id="resumen"></div>
+    </div>
+
+    <button id="verMas" aria-expanded="false" aria-controls="detalle">Ver los números</button>
 
     <div id="detalle" class="hide">
     <div class="panel">
@@ -466,12 +749,12 @@
         <span class="seg" id="preset">
           <button data-p="hoy" class="on">Hoy</button><button data-p="7d">7 días</button><button data-p="all">Todo</button>
         </span>
-        <select id="fDex"></select>
-        <select id="fSym"></select>
-        <select id="fSide">
+        <select id="fDex" aria-label="Filtrar por mercado"></select>
+        <select id="fSym" aria-label="Filtrar por símbolo"></select>
+        <select id="fSide" aria-label="Filtrar por dirección">
           <option value="">Long y short</option><option value="long">Solo long</option><option value="short">Solo short</option>
         </select>
-        <input type="date" id="fFrom"><input type="date" id="fTo">
+        <input type="date" id="fFrom" aria-label="Desde"><input type="date" id="fTo" aria-label="Hasta">
         <button id="reset">Limpiar filtros</button>
         <span class="mut" id="count"></span>
       </div>
@@ -519,8 +802,11 @@
     <div class="panel" id="compPanel">
       <h2>Qué rindió cada contexto</h2>
       <table id="tComp"></table>
-      <div class="hint">Promedio por operación de cada grupo contra el resto. <b>Estable</b> significa que la
-        diferencia aparece en las dos mitades de tu historial; si no, probablemente describa una época y no el contexto.</div>
+      <div class="hint" id="compNota"></div>
+      <div class="hint">Promedio por operación de cada grupo contra el resto. <b>Épocas</b> es que la
+        diferencia aparezca en las dos mitades de tu historial; si no, probablemente describa una época
+        y no el contexto. <b>p</b> es la probabilidad de ver una diferencia así de grande barajando las
+        etiquetas al azar — sin suponer que tus resultados se reparten como una campana, que no es el caso.</div>
     </div>
 
     <div class="panel">
@@ -528,6 +814,9 @@
       <div id="insights"></div>
     </div>
 
+    <div id="vacio" class="panel hide"></div>
+
+    <div id="graficos">
     <div class="panel">
       <h2>PnL acumulado neto</h2>
       <canvas id="cEquity"></canvas>
@@ -537,8 +826,10 @@
       <h2>Valor de la cuenta</h2>
       <canvas id="cCuenta"></canvas>
       <div class="hint">Serie real que informa el exchange. A diferencia del PnL acumulado, incluye
-        depósitos y retiros: es lo que efectivamente tuviste en la cuenta.</div>
+        depósitos y retiros: es lo que efectivamente tuviste en la cuenta.
+        <span id="cuentaNota"></span></div>
     </div>
+
 
     <div class="grid2">
       <div class="panel"><h2>Resultado por sesión</h2><canvas id="cSess"></canvas></div>
@@ -557,6 +848,7 @@
       </div>
       <div class="panel"><h2>Resultado por duración</h2><canvas id="cDur"></canvas></div>
       <div class="panel"><h2>Distribución de resultados</h2><canvas id="cDist"></canvas></div>
+    </div>
     </div>
 
     <div class="panel" id="openPanel">
@@ -585,7 +877,7 @@
     </div>
     </div>
   </div>
-</div>
+</main>
 
 <div id="tal" class="tal silencio">
   <div class="globo"><i class="cierra" id="cierra">×</i><span id="dice"></span></div>
@@ -593,7 +885,7 @@
 </div>
 
 <div class="foco" id="foco">
-  <div class="fcaja">
+  <div class="fcaja" id="fcaja" role="button" tabindex="0" aria-label="Siguiente del repertorio">
     <div id="fsvg"></div>
     <div class="ftexto">
       <div class="fet" id="fet"></div>
@@ -650,16 +942,36 @@ const DB = (() => {
   };
 })();
 
-let DATOS = { addr: '', notas: {}, hitos: {}, v: 1 };
+/* `holguras` guarda, por id de trade, la relación entre tu stop y la liquidación observada
+   mientras la posición estaba viva. Es el único dato de la app que no se puede recalcular
+   del historial: la API no devuelve el stop que tenías cargado. Si se pierde, se pierde. */
+/* `ejerc` es la serie de práctica declarada (Douglas): reglas elegidas en frío y una
+   cantidad fija de repeticiones. `declaraciones` son las tesis escritas ANTES de entrar,
+   que después se pegan a la operación que sale. Las dos son datos que no se pueden
+   recalcular del historial: dependen de que el usuario los haya escrito en su momento. */
+/* `banda` es el techo de pérdida por operación declarado en frío (3.1): `{ banda, desde }`.
+   Va acá y no en localStorage suelto porque es una decisión, igual que `ejerc`, y las
+   decisiones viajan con el resto de lo declarado. */
+/* `chequeos` son los pronósticos escritos ANTES de entrar —"si sale mal, ¿cuánto te va a
+   mover?"— y `movidas` las lecturas del cierre, por operación. Van separados porque el
+   pronóstico existe antes que la operación y la lectura después: es la misma asimetría que
+   tienen las declaraciones. **Nunca se guarda un nivel suelto**: una lectura sin pronóstico
+   contra el cual medirla sería el PnL con otro nombre. Ver 4.3 en `engine.js`. */
+let DATOS = { addr: '', notas: {}, hitos: {}, holguras: {}, ejerc: null, banda: null,
+  declaraciones: [], chequeos: [], movidas: {}, vistoUlt: null, v: 1 };
 let HANDLE = null, guardarTimer = null;
 
 async function cargarDatos() {
   const d = await DB.get('datos');
   if (d && typeof d === 'object') DATOS = Object.assign(DATOS, d);
+  if (!DATOS.holguras || typeof DATOS.holguras !== 'object') DATOS.holguras = {};
+  if (!Array.isArray(DATOS.declaraciones)) DATOS.declaraciones = [];
+  if (!Array.isArray(DATOS.chequeos)) DATOS.chequeos = [];
+  if (!DATOS.movidas || typeof DATOS.movidas !== 'object') DATOS.movidas = {};
   HANDLE = await DB.get('archivo');
   if (HANDLE) marcaArchivo('vinculado');
   if (DATOS.addr && !$('addr').value) $('addr').value = DATOS.addr;
-  $('verMas').textContent = tapa(DATOS.tapa)[$('detalle').classList.contains('hide') ? 0 : 1];
+  rotularVerMas();
 }
 
 function guardar() {
@@ -701,13 +1013,24 @@ async function vincularArchivo() {
   } catch (e) { if (e.name !== 'AbortError') marcaArchivo('error'); }
 }
 
-/* Pega las notas guardadas sobre los trades reconstruidos. */
+/* Pega las notas guardadas sobre los trades reconstruidos, y después las tesis que fueron
+   declaradas ANTES de entrar. El orden importa: la declaración previa pisa a la etiqueta
+   puesta después, porque es la que dice de verdad por qué entraste. */
 function aplicarNotas(trades) {
   for (const t of trades) {
     const n = DATOS.notas[t.id];
     if (n) { t.tesis = n.tesis || null; t.tags = n.tags || []; t.nota = n.nota || ''; }
     else { t.tesis = null; t.tags = []; t.nota = ''; }
   }
+  /* El orden importa y no es intercambiable: primero se pegan las que alcanzaron a una
+     operación, después se marcan las que se vencieron. Al revés, una declaración de hace
+     4 h y un minuto quedaría caducada antes de que `marcarDeclaradas` la mire. */
+  const pegadas = marcarDeclaradas(trades, DATOS.declaraciones);
+  const vencidas = caducarDeclaraciones(DATOS.declaraciones);
+  /* 4.3 — El pronóstico se pega igual que una tesis; la lectura del cierre ya vive por id. */
+  const cheq = marcarChequeos(trades, DATOS.chequeos);
+  anotarMovio(trades, DATOS.movidas);
+  if (pegadas || vencidas || cheq) guardar();
 }
 
 /* ===================== descarga de datos ===================== */
@@ -781,7 +1104,25 @@ async function pull(user) {
   for (const dx of dexes) {
     try { const pf = await post({ type: 'portfolio', user, dex: dx }); if (pf) portfolio[dx || 'hyperliquid'] = pf; } catch (e) {}
   }
-  return { user, fills, funding, state, orders, portfolio, dexes, diag, pulledAt: Date.now() };
+
+  /* Movimientos que no son fills ni funding: depósitos, retiros, transferencias. Ninguno
+     de los otros endpoints los trae, así que hasta ahora una caída de colateral sin
+     operaciones era indistinguible de una pérdida — y la regla de pagarse no se podía
+     medir sin violar el principio 2.
+
+     Se baja crudo y **no se infiere nada todavía**. Los nombres exactos de `delta.type`
+     hay que leerlos de una respuesta real, no asumirlos: diseñar sobre un shape supuesto
+     es la misma clase de error que aproximar una variable con un proxy. Por ahora vive
+     en el panel de diagnóstico y en ningún otro lado. */
+  let ledger = null;
+  try {
+    const desdeLedger = fills.length ? fills[0].time - 864e5 : Date.now() - 365 * 864e5;
+    const lg = await post({ type: 'userNonFundingLedgerUpdates', user, startTime: desdeLedger });
+    if (Array.isArray(lg)) ledger = lg;
+    diag.push(`ledger: ${Array.isArray(lg) ? lg.length + ' movimientos' : 'sin respuesta'}`);
+  } catch (e) { diag.push('ledger: error'); }
+
+  return { user, fills, funding, state, orders, portfolio, ledger, dexes, diag, pulledAt: Date.now() };
 }
 
 /* Aplana el estado por dex a listas únicas de posiciones y órdenes. */
@@ -800,6 +1141,17 @@ function flattenLive(raw) {
   return { pos, ord, equity };
 }
 
+/* Anota la holgura de lo que está abierto ahora mismo. Se llama en cada ingesta y en cada
+   refresco de datos vivos: cuanto más seguido mirás, mejor queda el registro. El motor se
+   queda con el peor momento de cada posición, así que llamarlo de más no ensucia nada. */
+function anotarHolgura() {
+  if (!LIVE || !LIVE.pos.length || !TRADES.length) return;
+  const st = computeStats(TRADES.filter(t => !t.open), null, RAW && RAW.portfolio, null, DATOS.ejerc, DATOS.banda);
+  const antes = JSON.stringify(DATOS.holguras);
+  registrarHolgura(analyzePositions(LIVE.pos, LIVE.ord, st), TRADES, DATOS.holguras);
+  if (JSON.stringify(DATOS.holguras) !== antes) guardar();
+}
+
 /* ===================== render ===================== */
 function ingest(raw) {
   RAW = raw;
@@ -808,6 +1160,7 @@ function ingest(raw) {
   attachFunding(TRADES, raw.funding || []);
   aplicarNotas(TRADES);
   LIVE = flattenLive(raw);
+  anotarHolgura();
   if (raw.user) { DATOS.addr = raw.user; guardar(); }
   if (!TRADES.length) { say('La wallet no tiene fills en HyperCore. ¿Es la dirección correcta?', true); return; }
   $('app').classList.remove('hide');
@@ -816,12 +1169,30 @@ function ingest(raw) {
   // a partir de acá el alta ya cumplió su función: se hace una línea
   const a = raw.user || $('addr').value;
   $('chip').textContent = a.slice(0, 8) + '…' + a.slice(-4);
-  $('setup').classList.add('compacto');
-  $('lema').classList.add('hide');
+  plegarAlta(true);
   buildFilters();
   render();
   const cerrados = TRADES.filter(t => !t.open).length;
   say(`${raw.fills.length} fills → ${TRADES.length} operaciones (${cerrados} cerradas) · ${new Date(raw.pulledAt).toLocaleString('es-AR')}`);
+  /* Con el alta plegada, `#vivo` es el único renglón que queda, y hasta acá solo escribía
+     algo si habías tocado el botón del vivo. Plegar el alta sin esto borra la única marca
+     de frescura que había: la pantalla queda idéntica mirando datos de hace un minuto o de
+     hace tres días, que es exactamente el error que el principio 1 prohíbe cometer a la app
+     y no hay motivo para permitírselo a la interfaz. */
+  if (!$('btnVivo').dataset.on) {
+    const t = +raw.pulledAt;
+    $('vivo').textContent = t ? 'datos de ' + new Date(t).toLocaleTimeString('es-AR') : 'sin marca de hora';
+  }
+}
+
+/* Un solo lugar escribe el estado del alta: la clase, el lema y el aria-expanded del chip.
+   Es la lección de `rotularVerMas()`, aplicada antes de que haga falta: ahí el rótulo y el
+   aria se escribían en cuatro puntos distintos y que un quinto se olvidara de avisar era
+   cuestión de tiempo. Acá se arranca con uno. */
+function plegarAlta(pleg) {
+  $('setup').classList.toggle('compacto', pleg);
+  $('lema').classList.toggle('hide', pleg);
+  $('chip').setAttribute('aria-expanded', pleg ? 'false' : 'true');
 }
 
 function buildFilters() {
@@ -866,10 +1237,22 @@ function filtered(ignoreDate) {
     && t.entryTime >= from && t.entryTime <= to);
 }
 
+/* Últimas estadísticas calculadas, para que el reloj de la franja no tenga que rehacerlas.
+   Ver el `setInterval` de más abajo. */
+let SBASE = null;
+
 function render() {
   const sel = filtered(), base = filtered(true);
-  const s = computeStats(sel), sBase = computeStats(base);
-  $('count').textContent = `${s.n} cerradas · ${s.nOpen} abiertas`;
+  const pf = RAW && RAW.portfolio;
+  const s = computeStats(sel, DATOS.holguras, pf, null, DATOS.ejerc, DATOS.banda),
+        sBase = computeStats(base, DATOS.holguras, pf, null, DATOS.ejerc, DATOS.banda);
+  SBASE = sBase;
+  /* `s.n` sale del período —cuántas cerraste en el rango, que es la pregunta— pero las
+     abiertas salen de `sBase`, por lo mismo que la tabla de abiertas: una posición que
+     sigue viva no deja de estarlo porque el filtro arranque hoy. Con `s.nOpen` el
+     contador decía "0 abiertas" con una posición abierta en pantalla. */
+  $('count').textContent = `${s.n} cerradas · ${sBase.nOpen} abiertas`;
+  renderMuestra(base);
   renderResumen(sBase, base);
   renderDayPlan(sBase, base);
   renderKpis(s);
@@ -879,6 +1262,14 @@ function render() {
   renderMitades(sBase);
   renderComparativas(sBase);
   renderInsights(sBase);
+  /* El ejercicio lee el historial entero, no el período filtrado: una serie declarada
+     no se interrumpe porque cambiaste el rango de fechas en pantalla. Las verdades
+     hacen lo mismo desde el repertorio, que también arma sobre `filtered(true)`. */
+  renderEjerc(sBase);
+  /* Como el ejercicio: sobre el historial entero y no el período filtrado. Cambiar el
+     rango de fechas no puede hacer desaparecer la pregunta de una operación que cerraste
+     hace diez minutos. */
+  renderPostCheck(sBase);
   renderCharts(s, sel);
   renderTables(sel);
 }
@@ -899,6 +1290,11 @@ const boca = (d, w) => `<path d="${d}" fill="none" stroke="${LN}" stroke-width="
 const ojo = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r || 2.1}" fill="${LN}"/>`;
 const ojoCerrado = (x, y) => `<path d="M${x - 2.8} ${y + 1} q2.8 2.2 5.6 0" fill="none"
   stroke="${LN}" stroke-width="1.8" stroke-linecap="round"/>`;
+/* El ojo tomado del modo aire: párpado bajo y la pupila reemplazada por luz plana.
+   Sin resplandor a propósito — ver el comentario de CARAS.avatar. */
+const OJO_AIRE = '#eafff6';
+const ojoTomado = (x, y) => `<path d="M${x - 3.4} ${y + .4} a3.4 3 0 0 1 6.8 0z" fill="${OJO_AIRE}"/>
+  <path d="M${x - 3.4} ${y + .6} h6.8" stroke="${LN}" stroke-width="1.4" stroke-linecap="round"/>`;
 
 const CARAS = {
   dormido: ceja('M17 12 h11', 3.4) + ceja('M33 12 h11', 3.4) +
@@ -918,13 +1314,39 @@ const CARAS = {
     `<path d="M44 2 l3 3 3-3 M50 5 l-3 3 3 3 M47 11 l-3-3-3 3 M41 5 l3-3-3-3"
        stroke="#ffd0d0" stroke-width="1.9" fill="none" stroke-linecap="round"/>`,
   alerta:  ceja('M16 6.5 l12 4', 4) + ceja('M45 6.5 l-12 4', 4) +
-    `<g class="ojos">${ojo(23, 20.5, 2.8)}${ojo(38, 20.5, 2.8)}</g>` + boca('M27 29 q4 -3 8 0')
+    `<g class="ojos">${ojo(23, 20.5, 2.8)}${ojo(38, 20.5, 2.8)}</g>` + boca('M27 29 q4 -3 8 0'),
+  /* ===== avatar: la cara del modo aire =====
+     El tilt y el aire son el mismo estado contado por los dos lados, y acá se ve: en
+     los dos el personaje está tomado, uno tiembla y el otro está inmóvil. Los ojos sin
+     pupila son la señal, se reconoce de reojo y no se confunde con ningún otro estado.
+
+     Lo que deliberadamente NO tiene es aura, resplandor ni mecha encendida. La versión
+     con brillo se probó y decía "estás imparable", que es falso —la expectativa por
+     operación no cambia porque el modo se encienda— y además convertía el modo en un
+     trofeo a perseguir. Lo que el aire mide es desapego: `rTam` y `rEsp` comparan qué
+     hacés después de perder contra después de ganar. Se enciende cuando el resultado
+     anterior dejó de moverte, no cuando ganás.
+
+     Las cejas quedan horizontales y la boca recta: la expresión se va, que es el punto.
+     Y los ojos no van en `<g class="ojos">` porque ese grupo parpadea, y un ojo tomado
+     no parpadea. */
+  avatar:  ceja('M17 10.5 h11', 3.4) + ceja('M33 10.5 h11', 3.4) +
+    `<g class="ojosfijos">${ojoTomado(23, 19)}${ojoTomado(38, 19)}</g>` + boca('M28 27 h6')
 };
 /* Señalando: la carcasa es el cuerpo, la empuñadura la base, y el brazo apunta
    a lo que estás mirando. */
-const drillSvg = (cara, tilt) => { const C = tilt
-  ? { cuerpo:'#c94f4f', sombra:'#8f3232', grip:'#4a2f2f', gripS:'#331e1e', metal:'#d9a3a3', mecha:'#f6e9e9' }
-  : { cuerpo:'#54b391', sombra:'#358068', grip:'#2f4a41', gripS:'#1e332c', metal:'#8fbfae', mecha:'#e9f6f1' };
+/* La mecha y las partes metálicas son casi blancas: sobre el globo oscuro se leen solas,
+   sobre el globo claro desaparecían y el taladro quedaba flotando sin punta. En claro
+   baja el valor de esas piezas y se aclara la empuñadura, que sobre blanco se veía como
+   un borrón negro. El personaje es el mismo, cambia el rango tonal. */
+const PALETA = {
+  normal: { cuerpo:'#54b391', sombra:'#358068', grip:'#2f4a41', gripS:'#1e332c', metal:'#8fbfae', mecha:'#e9f6f1', chispa:'#ffd0d0' },
+  tilt:   { cuerpo:'#c94f4f', sombra:'#8f3232', grip:'#4a2f2f', gripS:'#331e1e', metal:'#d9a3a3', mecha:'#f6e9e9', chispa:'#ffd0d0' }
+};
+const drillSvg = (cara, tilt) => {
+  const C = tilt ? PALETA.tilt : PALETA.normal;
+  // las chispas del enojo viven adentro de CARAS, que es constante; se tiñen acá
+  const cara_ = (CARAS[cara] || CARAS.seco).split('#ffd0d0').join(C.chispa);
   return `<svg viewBox="-15 -4 99 73" xmlns="http://www.w3.org/2000/svg" overflow="visible">
   <g class="flota">
   <path d="M21 31 L18 55 q-.6 4 4 4 h16 q4.6 0 4-4 L38 31z" fill="${C.grip}" stroke="#0f1714" stroke-width="2"/>
@@ -941,10 +1363,55 @@ const drillSvg = (cara, tilt) => { const C = tilt
     <path d="M12 23 q-10 4 -11 13" fill="none" stroke="#0f1714" stroke-width="3.6" stroke-linecap="round"/>
     <circle cx="1.5" cy="38" r="4.4" fill="currentColor" stroke="#0f1714" stroke-width="1.8"/>
   </g>
-  <g class="face">${CARAS[cara] || CARAS.seco}</g>
+  <g class="face">${cara_}</g>
   </g>
 </svg>`; };
 const CARA_DE = { alerta: 'alerta', seco: 'ceja', ok: 'guiño', info: 'seco', silencio: 'dormido' };
+
+/* ===== 4.3 — Los tres Taladrines inclinados =====
+   La escala del chequeo emocional no son palabras: son tres ángulos del mismo dibujo.
+
+   **El taladro es un objeto que se puede voltear, así que el ángulo *es* la pregunta.**
+   "Cuánto te movió" se contesta con cuánto está movido, sin traducir a una palabra y sin
+   calibrar qué significa un 2 sobre 3. Y resuelve lo que hundía a la versión de dos frases:
+   el ángulo es **ordinal por construcción**, así que hay diferencia que medir.
+
+   > La salida varía la cara y mantiene el cuerpo derecho.
+   > La entrada varía el cuerpo y mantiene la cara igual.
+
+   Ésa es la línea que desbloqueó el ítem. Usar a Taladrín como instrumento estaba anotado
+   y **bloqueado** porque "dos fuentes para el mismo dibujo se pisan" — cierto mientras la
+   entrada compitiera por la cara, que es el canal que `taladro` ya usa para tilt, aire,
+   hitos y ejercicio, con las ocho expresiones de `CARAS` todas tomadas. El ángulo del
+   cuerpo no lo usa ningún estado de salida: `tiltmode` tiembla y `airemode` se queda
+   quieto, los dos derechos. Canal libre, bloqueo levantado.
+
+   **Dos cosas que este dibujo no puede hacer, o el bloqueo vuelve:** tomar el rojo de
+   `PALETA.tilt`, y animarse. Estático y en la paleta normal, siempre. Por eso no lleva
+   `class="flota"` ni el brazo, que apunta a cosas y acá no apunta a nada. */
+const drillInclinado = (grados, seleccionado) => {
+  const C = PALETA.normal;
+  /* **El `viewBox` es el mismo para los tres y por eso es tan grande.** El pivote está en
+     la base de la empuñadura (30, 58), que es lo que hace que "volteado" se lea como que
+     se cae en vez de como que gira; con 56° la punta de la mecha llega a x≈85, muy afuera
+     del marco que le alcanza al derecho. Si cada ángulo tuviera su marco ajustado los tres
+     se verían del mismo tamaño y la inclinación perdería toda la fuerza — que es
+     exactamente lo que este dibujo tiene para aportar. Marco común, comparación justa. */
+  return `<svg viewBox="4 -4 88 84" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"
+    class="tinc${seleccionado ? ' on' : ''}">
+  <g transform="rotate(${grados} 30 58)">
+  <path d="M21 31 L18 55 q-.6 4 4 4 h16 q4.6 0 4-4 L38 31z" fill="${C.grip}" stroke="#0f1714" stroke-width="2"/>
+  <path d="M30 31 L30 59 h8 q4.6 0 4-4 L38 31z" fill="${C.gripS}" stroke="none"/>
+  <rect x="15" y="53" width="30" height="10" rx="3.5" fill="${C.gripS}" stroke="#0f1714" stroke-width="2"/>
+  <path d="M22 38 h14 M21 43 h14 M21 48 h14" stroke="${C.gripS}" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+  <rect x="12" y="3" width="38" height="29" rx="12" fill="${C.cuerpo}" stroke="#0f1714" stroke-width="2.2"/>
+  <path d="M38 3 h0 a12 12 0 0 1 0 29 h-3 a12 12 0 0 0 0-29z" fill="${C.sombra}"/>
+  <path d="M50 10 l7 2.5 v10 L50 25z" fill="${C.metal}" stroke="#0f1714" stroke-width="1.6"/>
+  <path d="M57 17.5 H68" stroke="${C.mecha}" stroke-width="3.6" stroke-linecap="butt"/>
+  <g class="face">${CARAS.seco}</g>
+  </g>
+</svg>`;
+};
 
 /* Pasar por encima de cualquier métrica hace que Taladro explique la regla.
    Al salir vuelve a lo que estaba diciendo. */
@@ -999,12 +1466,16 @@ function renderTaladro(v) {
   if (v.hito) { DATOS.hitos[v.hito.id] = v.hito.racha; guardar(); }
   const abierto = v.habla && !silenciado(v.id);
   const enTilt = v.id === 'tilt';
+  /* La cara del aire va por id y no por tono: el tono `ok` lo comparten los hitos, el
+     ejercicio y el aire, y un hito con los ojos tomados diría cualquier otra cosa. El
+     tilt ya se ramificaba igual, por el mismo motivo. */
+  const enAire = v.id === 'aire';
   /* Con una posición abierta no duerme: hay plata puesta y la cara tiene que decirlo. */
   const conPos = !!(LIVE && LIVE.pos && LIVE.pos.length);
-  let cara = enTilt ? 'furioso' : (CARA_DE[v.tono] || 'seco');
+  let cara = enTilt ? 'furioso' : enAire ? 'avatar' : (CARA_DE[v.tono] || 'seco');
   if (cara === 'dormido' && conPos) cara = 'atento';
   $('tal').className = 'tal ' + v.tono + (abierto ? ' habla' : '') +
-    (enTilt ? ' tiltmode' : '') + (conPos ? ' enpos' : '');
+    (enTilt ? ' tiltmode' : '') + (enAire ? ' airemode' : '') + (conPos ? ' enpos' : '');
   $('dice').innerHTML = v.linea || 'Sin novedades.';
   $('cuerpo').innerHTML = drillSvg(cara, enTilt);
   $('tal').dataset.vozId = v.id || '';
@@ -1023,10 +1494,24 @@ function renderRachas(s) {
       <div class="rb"><div style="width:${Math.max(2, f.p * 100).toFixed(0)}%"></div></div>
       <div class="rp">${(f.p * 100).toFixed(0)}%</div>
     </div>`).join('');
+  /* La racha en curso vive acá y no en la tira de la portada (1.9). No es la misma cosa
+     cambiada de lugar: allá era una cifra grande y de color sola en su caja, o sea un
+     marcador, y encima quedaba nítida mientras el tilt difuminaba la plata de al lado.
+     Acá sale con su probabilidad pegada en la misma oración, que es lo único que la vuelve
+     legible — el principio 8 pide decir que un drawdown largo es normal *con el número al
+     lado*. Desde 3, porque abajo de eso no hay nada que contextualizar y repetirlo en cada
+     visita sería el consuelo automático que el mismo principio prohíbe. */
+  const T = s.trades || [];
+  let corrida = 0;
+  for (let i = T.length - 1; i >= 0 && T[i].net < 0; i--) corrida++;
+  const enCurso = corrida >= 3
+    ? ` Ahora mismo llevás <b>${corrida}</b> perdedoras seguidas: una racha de ${corrida} o más ` +
+      `aparece en el <b>${(probRacha(r.n, r.q, corrida) * 100).toFixed(0)}%</b> de las tandas de ${r.n}.`
+    : '';
   $('rachaPie').innerHTML =
     `Con tu acierto actual de <b>${pct(s.winRate)}</b>, así se reparten las rachas perdedoras en 100 operaciones. ` +
-    `La racha larga típica es de <b>${r.tipica}</b> y la peor que tuviste fue de <b>${r.real}</b>. ` +
-    `Una racha larga no dice que estés haciendo algo mal: es el precio normal de un método con acierto parcial, ` +
+    `La racha larga típica es de <b>${r.tipica}</b> y la peor que tuviste fue de <b>${r.real}</b>.` + enCurso +
+    ` Una racha larga no dice que estés haciendo algo mal: es el precio normal de un método con acierto parcial, ` +
     `y por eso lo que se mide arriba son las acciones y no el resultado.`;
 }
 
@@ -1036,13 +1521,20 @@ function renderHabitos(s) {
   if (!H.length) return;
   $('habitos').innerHTML = H.map(h => {
     const p = h.meta ? Math.min(100, (h.racha / h.meta) * 100) : 100;
+    const cls = { ok: 's', no: 'n', sd: 'sd' };
     const dots = (h.serie || []).map(x =>
-      `<i class="${x.ok ? 's' : 'n'}" title="${fdate(x.t.entryTime)} · ${x.t.symbol} · ${usd(x.t.net)}"></i>`).join('');
+      `<i class="${cls[x.estado] || 'n'}" title="${fdate(x.t.entryTime)} · ${x.t.symbol} · ${usd(x.t.net)}${
+        x.estado === 'sd' ? ' · sin dato de colateral para medirlo' : ''}"></i>`).join('');
+    /* La contrapartida va siempre al lado del número, nunca en una nota aparte: si el
+       denominador no es 20, el renglón tiene que decir por qué antes de que lo preguntes. */
+    const conteo = h.deN
+      ? `${h.cumplidas} de las últimas ${h.deN}${h.sinDato ? ` · ${h.sinDato} sin dato` : ''}`
+      : `sin dato de colateral en las últimas ${h.deTotal}`;
     return `<div class="hab ${h.cumple ? '' : 'roto'}" data-tal="${esc(explica('habito', h, s))}">
       <div class="hn">${h.nombre}<span>${h.accion}</span></div>
       <div class="hmid"><div class="dots">${dots}</div><div class="hb"><div style="width:${p}%"></div></div></div>
       <div class="hv"><b>${h.racha}</b> al hilo${h.meta ? ` · próximo hito ${h.meta}` : ''}
-        <span>récord ${h.mejor} · ${h.cumplidas} de las últimas ${h.deN}</span></div>
+        <span>récord ${h.mejor} · ${conteo}</span></div>
     </div>`;
   }).join('');
 }
@@ -1050,9 +1542,18 @@ function renderHabitos(s) {
 function renderResumen(s, base) {
   const td0 = todayBySession(base);
   const posAn = (LIVE && LIVE.pos.length) ? analyzePositions(LIVE.pos, LIVE.ord, s) : [];
+  /* 4.7 — El momento en el que estás decide el orden de la portada, no el orden del
+     archivo. Ya no es una clase booleana: `momento()` devuelve `antes | dentro | después`,
+     y la clase sigue existiendo solo para `dentro`, que es la única que el CSS necesita
+     mover. El estado `después` es un panel propio con su `order`, no un reordenamiento. */
+  const mom = momento(s, posAn, DATOS.vistoUlt);
+  $('app').classList.toggle('dentro', mom.id === 'dentro');
+  renderDespues(s, posAn);
+  renderMapa(s);
   renderFranja(s, posAn);
   renderTaladro(taladro(s, posAn, td0, null, DATOS.hitos));
   const enTilt = renderTilt(s);
+  renderAire(s, enTilt);
   renderEnTrade(s, posAn);
   renderPrep(s, base, posAn, enTilt);
   renderTira(s, td0);
@@ -1063,6 +1564,11 @@ function renderResumen(s, base) {
    Cuando no tenés nada abierto, lo que más te sirve no es un consejo: es el número
    de la sesión que está corriendo. Es tu espejo justo antes de entrar. */
 const RANGO = { asia: [1200, 1590], hueco: [150, 240], pre: [240, 570], rueda: [570, 960], after: [960, 1200] };
+/* Cuántas operaciones hacen falta en una franja para que su promedio se pueda mostrar.
+   Estaba escrito tres veces con el mismo 3 —el filtro del ranking, el "sin muestra
+   todavía" y nada en la cifra— y esa tercera ausencia era el bug: la función ya sabía
+   que no había muestra y le daba igual a ese neto el tipo más grande de la pantalla. */
+const MUESTRA_FRANJA = 3;
 let _etm = null;
 function etMin() {
   try {
@@ -1075,7 +1581,7 @@ function etMin() {
 
 function renderFranja(s, posAn) {
   const id = sessionOf(Date.now()), S = SESSIONS[id], b = s.bySession[id];
-  const conMuestra = Object.entries(s.bySession).filter(([, v]) => v.n >= 3)
+  const conMuestra = Object.entries(s.bySession).filter(([, v]) => v.n >= MUESTRA_FRANJA)
     .sort((a, b2) => (b2[1].net / b2[1].n) - (a[1].net / a[1].n));
   const pos = conMuestra.findIndex(x => x[0] === id);
   const total = conMuestra.length;
@@ -1083,7 +1589,7 @@ function renderFranja(s, posAn) {
   if (pos === 0 && total >= 2) { rank = 'tu mejor franja'; clase = 'buena'; }
   else if (pos === total - 1 && total >= 2) { rank = 'tu peor franja'; clase = 'mala'; }
   else if (pos > 0) rank = `${pos + 1}ª de ${total}`;
-  else if (!b || b.n < 3) rank = 'sin muestra todavía';
+  else if (!b || b.n < MUESTRA_FRANJA) rank = 'sin muestra todavía';
 
   const r = relojSesion();
   const m = etMin(), rg = RANGO[id] || [0, 1440];
@@ -1107,13 +1613,21 @@ function renderFranja(s, posAn) {
           <span class="tx">en ${v.n} ${v.n === 1 ? 'operación' : 'operaciones'} tuyas</span>`
         : `<span class="tx">todavía no operaste en este tramo</span>`}</div>`;
     })()}
-    <div class="cifras">
-      <span class="big mono plata ${b ? cls(b.net) : 'mut'}">${b ? usd(b.net) : '—'}</span>
-      ${b ? `<span class="sub"><b class="mono">${b.n}</b> operaciones ·
-        <b class="mono">${((b.wins / b.n) * 100).toFixed(0)}%</b> de acierto ·
-        <b class="mono ${cls(b.net / b.n)}">${usd(b.net / b.n)}</b> por operación</span>`
-      : `<span class="sub">todavía no operaste en esta franja</span>`}
-    </div>
+    ${(() => {
+      /* Con menos de MUESTRA_FRANJA la cifra grande no se dibuja: no se reemplaza por un
+         guion ni por un cero, se saca el elemento. La jerarquía tipográfica *es* la
+         afirmación, y poner un promedio de una operación a 40px con la contrapartida en
+         letra chica al lado no es matizar: es afirmar y después susurrar el descargo. */
+      if (!b) return '<div class="cifras"><span class="sub">todavía no operaste en esta franja</span></div>';
+      if (b.n < MUESTRA_FRANJA) return `<div class="cifras"><span class="sub"><b class="mono">${b.n}</b> ` +
+        `${b.n === 1 ? 'operación' : 'operaciones'} acá, todavía sin muestra para promediar</span></div>`;
+      return `<div class="cifras">
+        <span class="big mono plata ${cls(b.net)}">${usd(b.net)}</span>
+        <span class="sub"><b class="mono">${b.n}</b> operaciones ·
+          <b class="mono">${((b.wins / b.n) * 100).toFixed(0)}%</b> de acierto ·
+          <b class="mono ${cls(b.net / b.n)}">${usd(b.net / b.n)}</b> por operación</span>
+      </div>`;
+    })()}
     <div class="barra"><i style="width:${(prog * 100).toFixed(1)}%"></i></div>
     <div class="pie">
       <span>${r.prox.label} <b class="mono">en ${falta(r.prox.ms)}</b></span>
@@ -1140,60 +1654,70 @@ addEventListener('scroll', () => {
 $('barra').onclick = () => scrollTo({ top: 0, behavior: 'smooth' });
 
 /* Tira densa: cuatro números en una línea, sin tarjetas. */
+/* ===== La tira de la portada (1.9) =====
+   Tenía cinco cajas y dos medían con el resultado. `Racha` contaba ganadoras o perdedoras
+   seguidas, que es PnL consecutivo, y el principio 3 es explícito: ningún hábito, barra ni
+   felicitación se calcula sobre el PnL.
+
+   Pero el argumento que la sacó no es ése, es más concreto. `Hoy` lleva la clase `plata` y
+   `Racha` no, así que `body.tiltpage .plata` difuminaba la plata a 9px y dejaba
+   "5 perdedoras seguidas" nítida y en rojo al lado. El tilt tapa el número porque decidió
+   que en ese momento el resultado no dice nada; la caja de al lado mostraba el mismo hecho
+   sin denominador y con más carga. El modo se estaba contradiciendo dentro de la misma
+   fila. Vive en `rachaPanel`, en el detalle, donde `probRacha` la acompaña con cuán normal
+   es una racha así — que es lo único que la vuelve legible.
+
+   `Mejor racha` (`146 sin liquidaciones`) no cae por el principio 3: no ser liquidado sí es
+   una acción. Cae porque como número más grande de su caja funciona como marcador, y
+   ninguna decisión de las próximas dos horas cambia porque diga 146 o 150.
+
+   `Más flojo` no era un problema de principio sino de duplicación: mostraba el mismo hábito
+   que el bloque de compromiso desarrolla entero 200px más abajo. Por eso se va **solo
+   cuando ese bloque está visible**, y no siempre: sin compromiso activo es la única caja de
+   la tira que mide conducta, y sacarla dejaría una portada de puro resultado.
+
+   `Hoy` se queda aunque también sea PnL, y el motivo es exactamente el que le faltaba a
+   `Racha`: tiene `plata`, así que el tilt y el aire ya la tapan.
+
+   Depende de que `renderPrep` haya corrido antes —lo garantiza el orden de `renderResumen`—
+   porque pregunta por el bloque ya renderizado en vez de recalcular a quién eligió. Dos
+   cálculos del mismo objetivo es la forma de que un día digan cosas distintas. */
 function renderTira(s, td0) {
-  /* La racha corre para los dos lados, y con una sola operación no hay racha:
-     ahí se muestra el resultado de la última y listo. */
-  const T = s.trades || [];
-  const ult = T[T.length - 1];
-  let corrida = 0, gana = false;
-  if (ult) {
-    gana = ult.net >= 0;
-    for (let i = T.length - 1; i >= 0 && (T[i].net >= 0) === gana; i--) corrida++;
-  }
-  const rachaVal = !ult ? '—' : corrida >= 2 ? String(corrida) : usd(ult.net);
-  const rachaSub = !ult ? 'todavía sin operaciones'
-    : corrida >= 2 ? (gana ? 'ganadoras seguidas' : 'perdedoras seguidas')
-    : (gana ? 'la última cerró en verde' : 'la última cerró en rojo');
-  const rachaCls = !ult ? 'mut' : gana ? 'up' : corrida >= 3 ? 'down' : 'mut';
-  let racha = gana ? 0 : corrida;
   const H = habitos(s.trades || [], s);
-  const flojo = H.slice().sort((a, b) => a.pct - b.pct)[0];
-  const fuerte = H.filter(h => h.racha > 0).sort((a, b) => b.racha - a.racha)[0];
+  /* Solo compiten los hábitos que se pudieron medir: uno sin dato no es el más flojo. */
+  const flojo = H.filter(h => h.pct != null).sort((a, b) => a.pct - b.pct)[0];
+  const compromisoVisible = !$('prepPanel').classList.contains('hide') &&
+    !!($('mejorar').innerHTML || '').trim();
   const pr = s.presupuesto;
   $('resumen').innerHTML = `<div class="tira">
     <div><div class="k">Hoy</div><div class="v mono plata ${cls(td0.net)}">${usd(td0.net)}</div>
       <div class="n">${td0.hoy.length} ${td0.hoy.length === 1 ? 'operación' : 'operaciones'}</div></div>
-    <div><div class="k">Racha</div>
-      <div class="v mono ${rachaCls}">${rachaVal}</div>
-      <div class="n">${rachaSub}</div></div>
-    ${pr ? `<div data-tal="${esc(explica('presupuesto', pr, s))}"><div class="k">Presupuesto</div>
+    ${pr && !pr.apagado ? `<div data-tal="${esc(explica('presupuesto', pr, s))}"><div class="k">Presupuesto</div>
       <div class="v mono ${pr.estado === 'en banda' ? 'up' : pr.estado === 'corto' ? 'mut' : 'down'}">${(pr.uso * 100).toFixed(0)}%</div>
       <div class="n">${pr.estado}</div></div>` : ''}
-    ${fuerte ? `<div><div class="k">Mejor racha</div><div class="v mono up">${fuerte.racha}</div>
-      <div class="n">${fuerte.nombre.toLowerCase()}</div></div>` : ''}
-    ${flojo ? `<div data-tal="${esc(explica('habito', flojo, s))}"><div class="k">Más flojo</div>
+    ${flojo && !compromisoVisible ? `<div data-tal="${esc(explica('habito', flojo, s))}"><div class="k">Más flojo</div>
       <div class="v mono ${flojo.pct < .5 ? 'down' : 'mut'}">${flojo.cumplidas}<span style="opacity:.5">/${flojo.deN}</span></div>
       <div class="n">${flojo.nombre.toLowerCase()}</div></div>` : ''}
   </div>`;
 }
 
-/* Reloj: solo hechos de calendario. Qué sesión corre, cuánto falta para el próximo
-   cambio estructural, y si hay un evento del Fed en las próximas horas. */
-function renderReloj() {
-  const r = relojSesion();
-  const ses = SESSIONS[sessionOf(Date.now())];
-  const ms = m => {
-    if (m < 0) return 'ya';
-    const s = Math.floor(m / 1000), h = Math.floor(s / 3600), mi = Math.floor((s % 3600) / 60);
-    return h ? `${h} h ${mi} min` : mi ? `${mi} min` : `${s % 60} s`;
-  };
-  $('reloj').innerHTML =
-    `<span><b>${ses.label}</b> · ${ses.art}</span>` +
-    `<span>${r.prox.label} <b>en ${ms(r.prox.ms)}</b> · ${r.prox.art}</span>` +
-    (r.evento ? `<span class="ev">${r.evento.label} <b>en ${ms(r.evento.ms)}</b> · ${r.evento.art}</span>` : '') +
-    (r.ventana ? `<span class="vt">${r.ventana.label}</span>` : '');
-}
-setInterval(() => { if (TRADES.length) { const st = computeStats(filtered(true)); renderFranja(st, []); } }, 1000);
+/* Acá vivía renderReloj(), que escribía los hechos de calendario en un #reloj que ya
+   no existe en el DOM. Nadie la llamaba: quedó superseded por renderRelojAct(), y el
+   texto de sesión y próximo cambio lo pone renderFranja() en el intervalo de abajo.
+   Se borró porque quince líneas muertas al lado de una función con nombre casi igual
+   son una trampa para el que lea esto en seis meses. */
+/* El reloj de la franja avanza cada segundo; tus estadísticas no. Acá se corría
+   `computeStats` entero una vez por segundo —el motor completo, con `comparativas`,
+   `aire`, `adherenciaDiaria` y dos bucles cuadráticos adentro— para redibujar una barra
+   de progreso horaria. Medido: 14 ms con 200 operaciones, 39 ms con 500, 46 ms con 1000.
+
+   `renderFranja` solo lee `bySession` y `byTramo`, que cambian cuando cierra una
+   operación y no cuando pasa un segundo. Así que reusa lo último que calculó `render()`.
+
+   No es una optimización por prolijidad: mientras el motor entero corriera una vez por
+   segundo, cualquier cálculo caro estaba vetado de antemano — y el control de comparaciones
+   múltiples de `comparativas` necesita un test de permutación, que es exactamente eso. */
+setInterval(() => { if (TRADES.length && SBASE) renderFranja(SBASE, []); }, 1000);
 
 /* ===== Modo tilt =====
    Cuando se activa, reemplaza a la preparación: no tiene sentido hablar de la próxima
@@ -1204,28 +1728,101 @@ function renderTilt(s) {
   $('tiltPanel').classList.toggle('hide', !on);
   document.body.classList.toggle('tiltpage', on);
   if (on) document.body.style.setProperty('--tf', Math.min(1, (t.racha - 2) / 6).toFixed(2));
-  else document.body.classList.remove('destapado');
   if (!on) return false;
   $('tiltRacha').innerHTML = `<b class="down mono">${t.racha}</b> pérdidas seguidas`;
   $('tiltQue').innerHTML = `<div class="tq">Qué se rompió</div>` +
     t.motivos.map(m => `<div class="tm">${m[0].toUpperCase() + m.slice(1)}</div>`).join('');
   const p = Math.min(100, (t.limpias / 2) * 100);
+  /* La especificación dice `t.limite` y no `t.banda * 1.5`: promete exactamente lo que
+     `limpia()` mide, y quién pone el múltiplo lo decide `bandaRiesgo`. */
   $('tiltSpec').innerHTML = `
     <div class="tq">Cómo tiene que ser la próxima</div>
     <div class="tspec">
       <div><span>Tamaño máximo</span><b class="mono">${usd(t.med * 2)}</b></div>
-      <div><span>Pérdida máxima</span><b class="mono">${usd(t.banda * 1.5)}</b></div>
+      <div><span>Pérdida máxima</span><b class="mono">${usd(t.limite)}</b></div>
       <div><span>Cerrada por</span><b>vos, no el exchange</b></div>
     </div>`;
   /* La barra cuenta conducta, no plata: por eso una perdedora dentro de la banda
      suma y una ganadora al doble del tamaño no. Es lo único que depende de vos. */
   $('tiltSalida').innerHTML = `
     <div class="tq" style="margin-top:14px">Cómo se sale</div>
-    <div class="tsal">Con dos operaciones dentro de tu banda de ${usd(t.banda)}
+    <div class="tsal">Con dos operaciones dentro de ${t.base === 'declarada'
+        ? `el techo de ${usd(t.limite)} que declaraste` : `tu banda de ${usd(t.limite)}`}
       y con tu tamaño de ${usd(t.med)}.
       <b>Perder dentro de la banda cuenta. Ganar fuera del tamaño no.</b></div>
     <div class="tbar"><i style="width:${p}%"></i></div>
     <div class="tp mono">${t.limpias} de 2</div>`;
+  return true;
+}
+
+/* ===== Modo aire =====
+   Difumina la plata igual que el tilt, pero por el motivo opuesto: no se tapa porque no
+   puedas mirarla, se tapa porque en esta operación no informa nada. La cifra que sí
+   informa —la expectativa— queda a la vista, y es la única que no se difumina. */
+function renderAire(s, enTilt) {
+  const a = s.aire;
+  const on = !!(a && a.activo) && !enTilt;
+  $('airePanel').classList.toggle('hide', !on);
+  document.body.classList.toggle('airepage', on);
+  // salir de cualquiera de los dos modos vuelve a tapar: destapar es por vez, no permanente
+  const B = document.body.classList;
+  if (!B.contains('tiltpage') && !B.contains('airepage')) B.remove('destapado');
+  if (!on) return false;
+
+  $('aireRacha').innerHTML = `<b class="up mono">${a.cumplidas}</b> de tus últimas ${a.ventana} dentro del sistema`;
+
+  const rojas = a.perdedoras;
+  $('aireQue').innerHTML = `<div class="tq">Qué estás sosteniendo</div>` +
+    `<div class="am"><b>${a.cumplidas}</b> de tus últimas ${a.ventana} operaciones, a lo largo de ` +
+    `${a.dias} ${a.dias === 1 ? 'día' : 'días'}, se mantuvieron adentro de tu sistema: dentro de ` +
+    `${a.base === 'declarada' ? `el techo de ${usd(a.limite)} que declaraste` : `tu banda de ${usd(a.limite)}`}` +
+    `, con tu tamaño de ${usd(a.med)}, cerradas por vos, sin días de ráfaga y sin quedarte quieto` +
+    (a.fallas
+      ? `. ${a.fallas === 1 ? 'La otra se salió' : `Las otras ${a.fallas} se salieron`}` +
+        (a.tipos.length ? ` (${a.tipos.join(', ')})` : '') +
+        ` y el modo sigue prendido: esto se sostiene con adherencia, no con perfección.`
+      : `.`) + `</div>` +
+    (rojas
+      ? `<div class="am"><b>${rojas}</b> de esas ${a.ventana} ${rojas === 1 ? 'cerró' : 'cerraron'} en rojo. Que esta cierre en rojo no ` +
+        `significaría que la tomaste mal: eso lo dicen el stop y el tamaño, que ya elegiste.</div>`
+      : `<div class="am">Ninguna de esas cerró en rojo, y eso tampoco dice nada del método: ` +
+        `la misma decisión con la misma banda a veces sale y a veces no.</div>`);
+
+  /* La medición que sostiene todo el modo: lo que hacés después de perder contra lo que
+     hacés después de ganar. Si son iguales, la indiferencia no es una declaración. */
+  const pareja = r => r == null ? '—' : r > 1 ? `${r.toFixed(2)}× más` : `${(1 / r).toFixed(2)}× menos`;
+  if (a.rTam != null || a.rEsp != null) {
+    $('aireSpec').innerHTML = `
+      <div class="tq">Después de perder, contra después de ganar</div>
+      <div class="tspec">
+        ${a.rTam != null ? `<div><span>Tamaño de entrada</span><b class="mono">${pareja(a.rTam)}</b></div>` : ''}
+        ${a.rEsp != null ? `<div><span>Espera hasta la siguiente</span><b class="mono">${pareja(a.rEsp)}</b></div>` : ''}
+      </div>
+      <div class="am" style="margin-top:8px">Una pérdida no te cambia el tamaño ni el tiempo de espera.
+        Eso es lo que se puede ver del estado emocional desde afuera: no lo que decís que no te afecta,
+        sino que las operaciones de después salen iguales.</div>`;
+  } else {
+    $('aireSpec').innerHTML = `<div class="tq">Después de perder, contra después de ganar</div>` +
+      `<div class="am">Todavía no hay cinco de cada lado para comparar, así que la estabilidad ` +
+      `queda sin medir en vez de darse por buena.</div>`;
+  }
+
+  $('aireSpec').innerHTML += `
+    <div class="tq">Lo que sí depende de la repetición</div>
+    <div class="tspec">
+      <div><span>Expectativa por operación</span><b class="mono up">${usd(a.expectancy)}</b></div>
+      <div><span>Sobre 100 así</span><b class="mono up">${usd(a.en100)}</b></div>
+      <div><span>Acierto</span><b class="mono">${(a.winRate * 100).toFixed(0)}%</b></div>
+    </div>`;
+
+  const pie = [];
+  if (a.seca >= 2 && a.pSeca != null)
+    pie.push(`Venís de ${a.seca} pérdidas seguidas. Con tu acierto, una racha así o peor aparece en ` +
+      `<b>${(a.pSeca * 100).toFixed(0)}%</b> de las series de 100 operaciones` +
+      (a.tipica ? `, y la racha larga típica en 100 es de <b>${a.tipica}</b>` : '') + `.`);
+  pie.push(`Los ${usd(a.en100)} de arriba no son una promesa sobre las próximas cinco: son a dónde ` +
+    `tiende el promedio si la banda y el tamaño se mantienen. Las próximas cinco pueden ser cualquier cosa.`);
+  $('airePie').innerHTML = `<div class="tsal" style="margin-top:14px">${pie.join(' ')}</div>`;
   return true;
 }
 
@@ -1234,7 +1831,12 @@ function renderEnTrade(s, posAn) {
   $('enTrade').classList.toggle('hide', !posAn.length);
   if (!posAn.length) return;
   const n = x => x == null ? '—' : x.toLocaleString('es-AR', { maximumFractionDigits: 4 });
-  const banda = (s.adherence ? s.adherence.rec.avgLoss : s.avgLoss) || 0;
+  /* El ancla del modo dentro miraba hacia adelante contra el promedio observado. Con techo
+     declarado tiene que mirar contra el techo: es la única pieza que se lee **con la
+     posición abierta**, o sea justo donde el número declarado importa más y donde el
+     panel para cambiarlo, a propósito, no existe. */
+  const B = s.banda || { limite: 0, base: 'observada' };
+  const banda = B.limite, decT = B.base === 'declarada';
   const total = posAn.reduce((a, p) => a + p.uPnl, 0);
   const enRiesgo = posAn.reduce((a, p) => a + (p.pnlAtStop != null ? Math.min(0, p.pnlAtStop) : -p.margin), 0);
   const varias = posAn.length > 1;
@@ -1272,14 +1874,17 @@ function renderEnTrade(s, posAn) {
       a.push(['good', `${q}el stop ya está en ganancia, así que pase lo que pase esta operación suma ${usd(r.pnlAtStop)}.`]);
     } else if (banda > 0) {
       const veces = Math.abs(r.pnlAtStop) / banda;
-      a.push([veces <= 1.5 ? 'good' : 'warn',
-        `${q}si salta el stop anotás ${usd(r.pnlAtStop)}, ${veces.toFixed(1)}x tu banda habitual de ${usd(banda)}.`]);
+      /* El corte es 1,0 y no 1,5: `banda` ya es el límite con su tolerancia adentro, así
+         que pasarlo es pasarlo. Antes se multiplicaba dos veces sin querer. */
+      a.push([veces <= 1 ? 'good' : 'warn',
+        `${q}si salta el stop anotás ${usd(r.pnlAtStop)}, ${veces.toFixed(1)}x ` +
+        (decT ? `el techo de ${usd(banda)} que declaraste.` : `tu banda habitual de ${usd(banda)}.`)]);
     }
   }
   if (varias && banda > 0) {
     a.push([Math.abs(enRiesgo) <= banda * 2 ? 'good' : 'warn',
       `Entre las ${posAn.length} arriesgás ${usd(enRiesgo)} si saltan todos los stops, ` +
-      `${(Math.abs(enRiesgo) / banda).toFixed(1)}x tu banda de una sola operación.`]);
+      `${(Math.abs(enRiesgo) / banda).toFixed(1)}x ${decT ? 'tu techo' : 'tu banda'} de una sola operación.`]);
   }
   if (s.n >= 10 && s.winRate) {
     a.push(['info', `Con tu acierto de ${pct(s.winRate)}, ${Math.round((1 - s.winRate) * 10)} de cada 10 ` +
@@ -1326,8 +1931,23 @@ function renderComparativas(s) {
   const c = s.comparativas || [];
   $('compPanel').classList.toggle('hide', !c.length);
   if (!c.length) return;
+  /* Las dos columnas de la derecha miden cosas distintas y por eso son dos.
+     <b>Épocas</b> es split-half: si la diferencia aparece en las dos mitades del historial.
+     <b>p</b> es el test de permutación con Benjamini-Hochberg encima: si se separa más de
+     lo que se separaría barajando las etiquetas, corregido por haber mirado todos estos
+     cortes a la vez. Un corte puede pasar una y no la otra, y el aviso de abajo dice
+     cuántos pasaron las dos — que es el único número que autoriza a afirmar algo. */
+  const bh = s.comparativasBH;
+  const pFmt = r => {
+    if (r.p == null) return '<span class="mut" title="no hay nada que permutar">—</span>';
+    const txt = r.pCota ? '&gt;' + (0.10).toLocaleString('es-AR', { minimumFractionDigits: 2 })
+                        : r.p.toLocaleString('es-AR', { maximumFractionDigits: 4 });
+    return r.sobrevive
+      ? `<span class="up" title="sobrevive a Benjamini-Hochberg al 10%">${txt}</span>`
+      : `<span class="mut" title="${r.pCota ? 'se cortó el cálculo al pasar el umbral: es una cota, no un valor' : 'no sobrevive la corrección por comparaciones múltiples'}">${txt}</span>`;
+  };
   $('tComp').innerHTML =
-    '<thead><tr><th>Contexto</th><th>Ops</th><th>Por operación</th><th>El resto</th><th>Diferencia</th><th>Estable</th></tr></thead><tbody>' +
+    '<thead><tr><th>Contexto</th><th>Ops</th><th>Por operación</th><th>El resto</th><th>Diferencia</th><th>Épocas</th><th>p</th></tr></thead><tbody>' +
     c.map(r => {
       const d = r.avg - r.avgResto;
       const est = r.difA == null || r.difB == null
@@ -1337,8 +1957,18 @@ function renderComparativas(s) {
         <td class="${cls(r.avg)}">${usd(r.avg)}</td>
         <td class="mut">${usd(r.avgResto)} <small>(${r.nResto})</small></td>
         <td class="${cls(d)}"><b>${d > 0 ? '+' : ''}${usd(d)}</b></td>
-        <td>${est}</td></tr>`;
+        <td>${est}</td><td>${pFmt(r)}</td></tr>`;
     }).join('') + '</tbody>';
+
+  /* El aviso no es una nota al pie: es lo que impide leer la tabla como una lista de
+     hallazgos. Sin esto, la fila de arriba del ranking parece un descubrimiento. */
+  const dobles = c.filter(r => r.estable && r.sobrevive).length;
+  $('compNota').innerHTML = !bh || !bh.m ? '' :
+    `Se probaron <b>${bh.m}</b> cortes a la vez. Con esa cantidad, alguno se destaca solo por ` +
+    `probar muchos: <b>${dobles === 0 ? 'ninguno' : dobles}</b> ` +
+    `${dobles > 1 ? 'aguantan' : 'aguanta'} las dos mitades <i>y</i> la corrección por multiplicidad ` +
+    `(Benjamini-Hochberg, 10%).` +
+    (dobles === 0 ? ' El resto de la tabla describe tu historial, no un patrón: es para mirar, no para decidir.' : '');
 }
 
 function renderMitades(s) {
@@ -1362,6 +1992,73 @@ function renderMitades(s) {
     }).join('') + '</tbody>';
 }
 
+/* ===== El techo de pérdida declarado (3.1) =====
+   Vive adentro de `prepPanel`, y eso decide dos cosas que no son de diseño visual.
+
+   **No se puede tocar en tilt ni con una posición abierta**, porque el panel entero
+   desaparece en los dos casos. No hizo falta escribir ninguna condición: cambiar tu regla
+   de riesgo en caliente es exactamente la conducta que la regla existe para frenar, y el
+   único momento en que se te ocurriría es adentro de una racha o de una posición que se
+   fue en contra. Si algún día este bloque se muda a un panel que sobrevive al tilt, hay
+   que agregar la guarda a mano.
+
+   **Y no hay confirmación de nada.** Escribís el número y listo, como el `ejercicio`.
+   Poner un "¿estás seguro?" trataría la decisión propia como un error a evitar. */
+function renderBanda(s) {
+  const el = $('bandaDecl');
+  const B = s.banda;
+  if (!B) { el.innerHTML = ''; return; }
+  const dec = B.base === 'declarada';
+  /* Dos formatos y no uno: el `value` de un `<input type="number">` tiene que llevar punto
+     decimal o el navegador lo descarta, mientras que el texto va en el formato de la app,
+     con coma. Mezclarlos deja un campo que se ve vacío sin que nada falle. */
+  const n2 = x => x.toFixed(2);
+
+  /* El aviso de deriva no usa ningún umbral nuevo, y eso es a propósito: el único corte
+     es 1,0, o sea la definición misma del techo. "Tu promedio ya pasó el número que
+     escribiste" es un hecho, no una interpretación de cuánto es demasiado. */
+  const pasa = dec && B.observada != null && B.observada > B.declarada;
+
+  el.innerHTML = `
+    <div class="bdec${pasa ? ' deriva' : ''}">
+      <div class="row" style="align-items:center;gap:10px">
+        <label class="campo">Techo de pérdida
+          <input id="bandaIn" type="number" step="0.01" min="0.01" inputmode="decimal"
+            value="${dec ? n2(B.declarada) : ''}"
+            placeholder="${B.observada != null ? n2(B.observada) : '—'}"> USD</label>
+        <button class="fbtn" id="bandaSet">${dec ? 'Cambiar' : 'Declarar'}</button>
+        ${dec ? `<button id="bandaDel">Sacar</button>` : ''}
+      </div>
+      <div class="hint">${dec
+        ? `Lo escribiste vos${B.desde ? ' el ' + new Date(B.desde).toLocaleDateString('es-AR') : ''}, y la app no lo mueve nunca sola. ` +
+          (B.observada != null
+            ? (pasa
+               ? `Tu pérdida promedio de las últimas ${B.nObs} es <b>US${usd(B.observada)}</b>: ya está por encima del techo. ` +
+                 `Cambiar el número o cambiar las salidas son dos decisiones distintas y las dos son tuyas.`
+               : `Tu pérdida promedio de las últimas ${B.nObs} es US${usd(B.observada)}, adentro del techo.`)
+            : `Todavía no hay perdedoras suficientes para comparar contra qué venís haciendo.`)
+        : `Sin techo declarado la app usa tu pérdida promedio reciente${B.observada != null
+            ? ` (US${usd(B.observada)}) por uno y medio, o sea US${usd(B.limite)}` : ''}. ` +
+          `Ese número se mueve con tus pérdidas: si crecen despacio, la referencia crece con ellas y el hábito marca verde igual.`}</div>
+    </div>`;
+
+  $('bandaSet').onclick = () => {
+    const v = +$('bandaIn').value;
+    if (!(v > 0) || !isFinite(v)) return;
+    DATOS.banda = { banda: v, desde: Date.now() };
+    /* El calculador se prellena una sola vez, así que hay que soltarlo o seguiría
+       mostrando el tamaño que salía del número viejo. */
+    $('riesgo').value = ''; delete $('riesgo').dataset.tocado;
+    guardar(); render();
+  };
+  const d = $('bandaDel');
+  if (d) d.onclick = () => {
+    DATOS.banda = null;
+    $('riesgo').value = ''; delete $('riesgo').dataset.tocado;
+    guardar(); render();
+  };
+}
+
 /* ===== Modo preparación =====
    Aparece cuando no tenés nada abierto. No sugiere operar: convierte tu propia banda de
    pérdida en un tamaño, antes de entrar, que es cuando la cuenta todavía sirve para algo. */
@@ -1376,8 +2073,11 @@ function renderPrep(s, base, posAn, enTilt) {
      forma: primero invitación, después el costo medido, después un compromiso concreto.
      Una sugerencia repetida diez veces que no mueve nada es una sugerencia fallada. */
   const H = habitos(s.trades || [], s);
-  const objetivo = H.filter(x => !x.cumple).sort((a, b) => a.pct - b.pct)[0] ||
-    H.slice().sort((a, b) => a.pct - b.pct)[0];
+  /* Un hábito sin dato no puede ser el objetivo: pedirte que mejores algo que la app no
+     está pudiendo medir es pedirte que corrijas a ciegas. */
+  const Hm = H.filter(x => x.pct != null);
+  const objetivo = Hm.filter(x => !x.cumple).sort((a, b) => a.pct - b.pct)[0] ||
+    Hm.slice().sort((a, b) => a.pct - b.pct)[0];
   const ult = (s.trades || [])[(s.trades || []).length - 1];
   if (!objetivo) { $('mejorar').innerHTML = ''; return; }
 
@@ -1410,10 +2110,17 @@ function renderPrep(s, base, posAn, enTilt) {
 
   const c = DATOS.compromiso;
   const pendiente = c && c.id === objetivo.id && s.n === c.ops;
-  const veredicto = c && c.id === objetivo.id && s.n > c.ops
-    ? (objetivo.serie && objetivo.serie.length && objetivo.serie[objetivo.serie.length - 1].ok
+  /* El veredicto del compromiso tiene tres salidas, no dos. Si la última operación no se
+     pudo medir, no se falla el compromiso: decirte "no salió" cuando nadie miró sería el
+     mismo error que rompía la racha del hábito por un agujero en la serie de cuenta. */
+  const ultSerie = objetivo.serie && objetivo.serie.length
+    ? objetivo.serie[objetivo.serie.length - 1].estado : null;
+  const veredicto = c && c.id === objetivo.id && s.n > c.ops && ultSerie
+    ? (ultSerie === 'ok'
         ? ['ok', 'Dijiste que la próxima sí, y la cumpliste.']
-        : ['no', 'Dijiste que la próxima sí y no salió. Queda anotado, nada más.'])
+        : ultSerie === 'no'
+          ? ['no', 'Dijiste que la próxima sí y no salió. Queda anotado, nada más.']
+          : ['mut', 'Dijiste que la próxima sí, pero esta no se pudo medir: falta el dato de colateral. Sigue pendiente.'])
     : null;
   if (veredicto) { delete DATOS.compromiso; guardar(); }
 
@@ -1432,14 +2139,30 @@ function renderPrep(s, base, posAn, enTilt) {
   const btn = $('mejorar').querySelector && $('mejorar').querySelector('.mcomp');
   if (btn) btn.onclick = () => { DATOS.compromiso = { id: objetivo.id, ops: s.n }; guardar(); render(); };
 
-  const ref = (s.adherence ? s.adherence.rec.avgLoss : s.avgLoss) || 0.2;
+  renderBanda(s);
+
+  /* El calculador arranca en el techo declarado si lo hay, y no en el promedio observado.
+     Es la diferencia práctica más grande del ítem: el número con el que dimensionás la
+     próxima operación pasa a ser el que elegiste vos y no el que vinieron dando tus
+     pérdidas. Sin declarar, el fallback es el de siempre. */
+  const ref = (s.banda && s.banda.valor) || 0.2;
   const pr = s.presupuesto;
   if (!$('riesgo').value) $('riesgo').value = ref.toFixed(2);
-  if (pr && !$('stopPct').dataset.tocado) $('stopPct').value = pr.stopTipico.toFixed(2);
+  if (pr && !pr.apagado && !$('stopPct').dataset.tocado) $('stopPct').value = pr.stopTipico.toFixed(2);
   calcular();
 
   // presupuesto: la fuga silenciosa va en las dos direcciones
-  if (pr) {
+  if (pr && pr.apagado) {
+    /* 3.3 — Apagada, pero no muda. Una pieza que desaparece sin decir nada se lee como un
+       bug; ésta dice qué le falta y por qué no se calcula con lo que hay. */
+    $('presu').innerHTML = `<div class="hint" style="margin:12px 0 4px">
+      <b>El presupuesto está apagado.</b> Se calcula con la distancia al stop que la app te vio
+      poner en vivo, y hacen falta 5 posiciones observadas con stop cargado: llevás
+      <b>${pr.conStop}</b>${pr.falta ? `, faltan ${pr.falta}` : ''}.
+      <br>Antes se sacaba de tus perdedoras —cuánto perdiste sobre el notional— y eso lo hacía casi
+      una tautología: comparaba tu notional reciente contra el de hace un rato, así que podía
+      marcarte “corto” simplemente porque perdiste. Se apaga en vez de volver a eso.</div>`;
+  } else if (pr) {
     const col = { corto: 'warn', 'en banda': 'up', pasado: 'down' }[pr.estado];
     const txt = { corto: 'venís entrando por debajo de lo que tu regla habilita',
       'en banda': 'estás entrando en línea con tu regla',
@@ -1448,8 +2171,10 @@ function renderPrep(s, base, posAn, enTilt) {
       <div class="pb" data-tal="${esc(explica('presupuesto', pr, s))}"><div class="pbf ${col}" style="width:${Math.min(100, pr.uso * 66).toFixed(0)}%"></div>
         <span class="pbm"></span></div>
       <div class="pl"><b class="${col === 'up' ? 'up' : col === 'warn' ? 'mut' : 'down'}">${(pr.uso * 100).toFixed(0)}% del presupuesto</b>
-        — ${txt}. Habilitado ${usd(pr.habilitado)} con una banda de ${usd(pr.banda)}
-        y un stop típico de ${pr.stopTipico.toFixed(2)}%.</div>
+        — ${txt}. Habilitado ${usd(pr.habilitado)} con ${pr.base === 'declarada'
+          ? `el techo de ${usd(pr.banda)}` : `una banda de ${usd(pr.banda)}`}
+        y un stop típico de ${pr.stopTipico.toFixed(2)}%, que es la mediana de lo que te vi poner
+        en ${pr.conStop} posiciones.</div>
       <div class="ult">
         <span class="k">Tus últimas ${pr.ventana}</span>
         ${pr.ultimos.map(n => `<i class="${n > pr.habilitado * 1.5 ? 'alto' : n < pr.habilitado * 0.6 ? 'bajo' : 'bien'}"
@@ -1460,6 +2185,325 @@ function renderPrep(s, base, posAn, enTilt) {
   } else $('presu').innerHTML = '';
 
   $('prepNotas').innerHTML = '';
+  renderDeclarar(s);
+  renderPreCheck();
+  renderHueco(s);
+}
+
+/* ===== 4.5 — El mapa: la cinta del día =====
+
+   **La decisión que define el ítem no es el dibujo, es el color.** Los segmentos se pintan
+   por adherencia y jamás por frecuencia ni por PnL. Un mapa coloreado por frecuencia dice
+   *"acá venís seguido"* y eso es una invitación; uno por adherencia dice *"acá tu proceso
+   se rompe"*, que es lo único que el principio 4 permite. **Si alguna vez alguien lo pinta
+   por neto, el ítem se convirtió en su opuesto y hay que revertirlo sin discutir.**
+
+   **Contra asumido: la cinta tiene mitad derecha, y eso es el futuro.** Por ahí entra el
+   empujón horario que el principio 4 ya mató —*"es tu franja habitual, buscá algo"*—. Se
+   consideró una versión sin eje de tiempo, cinco celdas fijas sin izquierda ni derecha,
+   que elimina el problema de raíz y pierde toda la intuición espacial. Se eligió la cinta
+   a sabiendas, con tres mitigaciones que son parte de la pieza:
+
+   - **Ningún marcador de "próximo tramo"** ni cuenta regresiva al segmento que viene.
+   - **Nada en `taladro` que hable del mapa.** La mascota no lo menciona nunca.
+   - El marcador de *estás acá* es una línea fina y muda: no dice cuánto falta para nada.
+
+   Una celda sin muestra va en gris y **no** en el color de 0% de adherencia: la diferencia
+   entre "no hay con qué juzgarte acá" y "acá fallás siempre" es justo la que el mapa no
+   puede borrar. */
+function renderMapa(s) {
+  const el = $('mapaDia');
+  if (!el) return;
+  const fr = s.franjas;
+  const c = cintaDelDia();
+  if (!fr || !c.arcos.length) { el.innerHTML = ''; return; }
+  const porId = {};
+  for (const x of fr.celdas) porId[x.id] = x;
+  const hhmm = m => String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+
+  /* ===== Cuándo se colorea, y contra qué =====
+     Acá había `p >= 0.9 ? ok : p >= 0.7 ? medio : roto`, y eran **dos umbrales inventados**
+     —justo lo que este proyecto saca de todos lados—. Medido sobre la cuenta real: su
+     adherencia global es 80,9% y las nueve franjas caen entre 72% y 88%, así que con
+     cortes fijos en 90 y 70 **casi todo el anillo quedaba del mismo amarillo**. El dibujo
+     se veía sucio y no decía nada, que es peor que no decir nada.
+
+     Dos cambios, y el primero importa más:
+
+     **Si las franjas no separan, no se colorea nada.** Un solo tono neutro. Pintar de
+     verde y rojo una variación que el test de permutación dice que es azar es exactamente
+     lo que 3.5 vino a arreglar en `comparativas`, y sería raro corregirlo ahí y cometerlo
+     acá. El color aparece solo cuando hay algo que colorear.
+
+     **Y cuando aparezca, el corte sale de su propio nivel y no de una tabla.** Mejor o peor
+     que su global, con un margen de medio desvío para que la franja del montón no salte de
+     color por dos juicios. Nada de "90% es bueno": bueno es mejor que vos mismo. */
+  const tono = p => {
+    if (p == null) return 'sd';
+    if (!fr.separa) return 'plano';
+    const g = fr.global == null ? p : fr.global;
+    const d = Math.sqrt(g * (1 - g) / Math.max(1, fr.medibles / Math.max(1, fr.conMuestra))) * 0.5;
+    return p >= g + d ? 'ok' : p <= g - d ? 'roto' : 'medio';
+  };
+
+  /* ===== Por qué es un anillo y no una tira =====
+     **El día es cíclico y la tira recta lo mentía.** Asia va de 21:00 a 03:30, así que
+     quedaba partida en dos pedazos —uno en cada punta— y se leía como dos franjas
+     distintas. En el anillo es un arco solo.
+
+     **Y por qué es un anillo y no gajos radiales, que es lo que usa "Cuándo operás".**
+     Ese reloj codifica frecuencia en el largo y PnL en el color: dos relojes casi idénticos
+     con variables opuestas se confunden, y el que gana es el que tiene los colores más
+     fuertes. Mismo espacio, distinto lenguaje: acá anillo segmentado de grosor constante
+     —el grosor no significa nada a propósito— y allá gajos que crecen. */
+  const S = 260, cx = S / 2, cy = S / 2, R = 104, r = 82;
+  const ang = m => (m / 1440) * Math.PI * 2 - Math.PI / 2;
+  const P = (a, rad) => [cx + Math.cos(a) * rad, cy + Math.sin(a) * rad];
+  const arco = (de, a, tono2, tip) => {
+    const a1 = ang(de), a2 = ang(a);
+    /* Un pelo de aire entre segmentos para que se lean separados sin líneas divisorias. */
+    const g = 0.008;
+    const [x1, y1] = P(a1 + g, R), [x2, y2] = P(a2 - g, R);
+    const [x3, y3] = P(a2 - g, r), [x4, y4] = P(a1 + g, r);
+    const largo = (a - de) > 720 ? 1 : 0;
+    return `<path class="ma ${tono2}" d="M${x1} ${y1} A${R} ${R} 0 ${largo} 1 ${x2} ${y2}
+      L${x3} ${y3} A${r} ${r} 0 ${largo} 0 ${x4} ${y4} Z"><title>${esc(tip)}</title></path>`;
+  };
+
+  const anillo = c.arcos.map(sg => {
+    const cel = porId[sg.id];
+    const nom = cel ? cel.label : sg.id;
+    const tip = `${nom} · ${hhmm(sg.desde)}–${hhmm(sg.hasta)} · ` +
+      (!cel ? 'sin datos'
+        : cel.pct == null ? `sin muestra (${cel.medibles} de ${fr.minMuestra} juicios)`
+        : `${(cel.pct * 100).toFixed(0)}% de adherencia en ${cel.medibles} juicios`);
+    return arco(sg.desde, sg.hasta, tono(cel ? cel.pct : null), tip);
+  }).join('');
+
+  /* Las operaciones de hoy, adentro del anillo y en su hora real. Son marcas de posición y
+     **no llevan color de resultado**: el mapa entero mide conducta. */
+  const hoy = (s.trades || []).filter(t => diaBA(t.entryTime) === c.dia);
+  const puntos = hoy.map(t => {
+    const min = Math.floor((t.entryTime - c.cero) / 6e4);
+    if (min < 0 || min > 1440) return '';
+    const [px, py] = P(ang(min), r - 11);
+    return `<circle class="mop" cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="2.4"
+      ><title>${esc(t.symbol + ' ' + t.side + ' · ' + hhmm(min))}</title></circle>`;
+  }).join('');
+
+  /* El marcador de "estás acá": una aguja fina y muda. No dice cuánto falta para nada —
+     una cuenta regresiva al tramo que viene es el empujón horario con ropa de mapa. */
+  let aguja = '';
+  if (c.ahora != null) {
+    const [ax, ay] = P(ang(c.ahora), r - 20), [bx, by] = P(ang(c.ahora), R + 6);
+    aguja = `<line class="mahora" x1="${ax.toFixed(1)}" y1="${ay.toFixed(1)}"
+      x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}"/>`;
+  }
+
+  const horas = [0, 3, 6, 9, 12, 15, 18, 21].map(h => {
+    const [tx, ty] = P(ang(h * 60), R + 17);
+    return `<text class="mh" x="${tx.toFixed(1)}" y="${(ty + 3.5).toFixed(1)}">${String(h).padStart(2, '0')}</text>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="mapa">
+      <svg viewBox="0 0 ${S} ${S}" class="msvg" role="img"
+        aria-label="Tu día en hora de Buenos Aires, con cada franja pintada por adherencia">
+        ${anillo}${puntos}${aguja}${horas}
+        <text class="mc" x="${cx}" y="${cy - 2}">${hoy.length}</text>
+        <text class="mc2" x="${cx}" y="${cy + 12}">${hoy.length === 1 ? 'operación hoy' : 'operaciones hoy'}</text>
+      </svg>
+      ${/* ===== Una línea, y lo demás por hover =====
+            Acá había cuatro oraciones explicando qué codifica el color, qué significa el
+            gris y qué son los puntos. **Nadie lee un párrafo abajo de un gráfico**, y
+            encima arrancaba con "el color es adherencia", que es la palabra del motor y no
+            la de él. La app ya tiene el canal para lo largo: `data-tal` hace que Taladrín
+            lo explique al pasar por encima, que es como se explican todas las demás
+            métricas. Se dice una cosa, y el que quiera más pasa el mouse. */ ''}
+      <div class="hint" data-tal="${esc(fr.separa
+        ? `Cada franja está pintada según cuánto sostenés tus propias reglas ahí: cerrar la ` +
+          `pérdida donde dijiste, entrar con tu tamaño, y no dejar que cierre el exchange. ` +
+          `Verde es mejor que tu promedio de ${(fr.global * 100).toFixed(0)}%, rojo es peor. ` +
+          `Gris es que ahí todavía no operaste lo suficiente para juzgarte, que no es lo mismo ` +
+          `que fallar. Nada acá mira la plata.`
+        : `Cada franja se mide por cuánto sostenés tus propias reglas ahí, y hoy están todas ` +
+          `parecidas: ${(fr.global * 100).toFixed(0)}% en promedio, y la diferencia entre la mejor ` +
+          `y la peor es la que saldría barajando las horas al azar. Por eso no está pintado ` +
+          `de colores: no habría nada que mostrar. Gris más oscuro es donde todavía no ` +
+          `operaste lo suficiente. Nada acá mira la plata.`)}">${fr.separa
+        ? `<b>Verde donde sostenés tus reglas, rojo donde te ponés palos en la rueda.</b>`
+        : `Todavía te portás igual a toda hora, así que no hay nada que pintar.`}</div>
+    </div>`;
+}
+
+/* ===== 4.7 — El estado "recién cerraste" =====
+   Antes caías del cierre directo al panel que prepara la siguiente. Este panel se mete en
+   el medio y **termina en el registro, no en el calculador de tamaño**: si terminara ahí,
+   la app habría creado un malestar cuya salida es operar, que es principio 5 sin vueltas.
+   Descansar es la salida obvia de esta pantalla, no la de abajo.
+
+   Muestra cuatro cosas y solo una es una acción — **si cumpliste tus reglas**. Las otras
+   tres son el hecho: qué cerró, cuánto, y cómo quedó contra tu banda. */
+function renderDespues(s, posAn) {
+  const el = $('despPanel');
+  if (!el) return;
+  const m = momento(s, posAn, DATOS.vistoUlt);
+  el.classList.toggle('hide', m.id !== 'despues');
+  if (m.id !== 'despues') return;
+  const t = m.trade;
+  const B = s.banda;
+  const H = habitos(s.trades || [], s);
+  /* El veredicto de conducta es de tres valores, como todo test de hábito: cumplió, no
+     cumplió, o no se pudo medir. El tercero no se pinta de rojo. */
+  const juicios = H.map(h => ({ h, v: h.serieTest(t) })).filter(x => x.v != null);
+  const rotas = juicios.filter(x => x.v === false);
+  const dentro = B ? B.dentro(t) : null;
+
+  el.innerHTML = `<h2>Recién cerraste</h2>
+    <div class="dqp">
+      <div><span class="k">Qué</span><b>${t.symbol} ${t.side}</b></div>
+      <div><span class="k">Resultado</span><b class="mono ${cls(t.net)}">${usd(t.net)}</b></div>
+      <div><span class="k">Duración</span><b class="mono mut">${t.durationMs ? Math.round(t.durationMs / 6e4) + ' min' : '—'}</b></div>
+    </div>
+    ${t.net < 0 && dentro != null ? `<div class="mn" style="margin-top:8px">${dentro
+      ? `Quedó dentro de ${B.base === 'declarada' ? 'el techo que declaraste' : 'tu banda'} (${usd(B.limite)}).`
+      : `Se pasó de ${B.base === 'declarada' ? 'el techo que declaraste' : 'tu banda'} (${usd(B.limite)}).`}</div>` : ''}
+    <div class="mn" style="margin-top:8px">${juicios.length === 0
+      ? `No hubo con qué juzgar las reglas en ésta.`
+      : rotas.length === 0
+        ? `<b>Salió con las ${juicios.length === 1 ? 'regla' : juicios.length + ' reglas'} que se pudieron medir.</b>`
+        : `Se salió de ${rotas.map(x => x.h.nombre.toLowerCase()).join(' y ')}.`}</div>
+    <div class="hint">Lo único de acá arriba que dependió de vos es la última línea. El resultado
+      ya está, y lo que hagas ahora no lo cambia.</div>
+    <div class="row" style="margin-top:12px">
+      <button class="primary" id="despOk">Anotado</button>
+    </div>`;
+  $('despOk').onclick = () => { DATOS.vistoUlt = t.id; guardar(); render(); };
+}
+
+/* ===== 4.1 — El hueco abierto =====
+   Va al pie de `prep`, en `--mut`, sin color que cambie y sin contador que crezca solo.
+   Nunca en `taladro`. Ver el comentario de `huecoAbierto` en el motor: la diferencia entre
+   medir y empujar es más fina en la práctica que en el enunciado, y estas tres
+   restricciones son la pieza tanto como el número. */
+function renderHueco(s) {
+  const el = $('huecoAb');
+  if (!el) return;
+  const h = huecoAbierto(s);
+  const dur = ms => ms < 36e5 ? Math.round(ms / 6e4) + ' minutos'
+    : ms < 864e5 ? (ms / 36e5).toFixed(1) + ' horas' : (ms / 864e5).toFixed(1) + ' días';
+  if (!h) { el.innerHTML = ''; return; }
+  el.innerHTML = `<div class="hueco mut">Hace <b>${dur(h.ms)}</b> que no abrís una.` +
+    (h.comparable
+      ? ` Tu hueco mediano es de ${dur(h.mediana)} y el 90% de los tuyos fue menor a ${dur(h.p90)}.`
+      : ` Todavía no hay huecos suficientes para comparar contra tu propio ritmo.`) +
+    `</div>`;
+}
+
+/* ===== 4.3 — El pre-check, adentro de `prep` =====
+   Superficie nueva cero: va en el panel al que ya viene a escribir la tesis. Y como
+   `prepPanel` no existe con posición abierta ni en tilt, **la pregunta no aparece nunca
+   adentro de una operación** — que es lo que la mantiene del lado correcto del principio 5,
+   sin necesidad de escribir una guarda. */
+function renderPreCheck() {
+  const el = $('preCheck');
+  if (!el) return;
+  const viva = (DATOS.chequeos || []).filter(x => !x.usada && Date.now() - x.ts <= CHEQ_VIGENCIA).pop();
+  el.innerHTML = `<div class="pchk">
+    <div class="pcq">Si sale mal, ¿cuánto te va a mover?</div>
+    <div class="pcfila">${CHEQ_NIVELES.map(n =>
+      `<button class="pcb${viva && viva.pre === n.n ? ' on' : ''}" data-pre="${n.n}"
+         aria-pressed="${viva && viva.pre === n.n ? 'true' : 'false'}">
+         ${drillInclinado(n.grados, viva && viva.pre === n.n)}
+         <span>${n.label}</span></button>`).join('')}</div>
+    <div class="hint">${viva
+      ? `Anotado. Se pega a la próxima que abras, y al cerrarla te pregunto cuánto te movió de verdad.`
+      : `Podés no contestar; sin respuesta, la operación sale del denominador.
+         <b>No se guarda cómo te sentís</b>, se guarda la diferencia entre lo que dijiste acá y
+         lo que digas al cerrar.`}</div>
+  </div>`;
+  for (const b of el.querySelectorAll('[data-pre]')) b.onclick = () => {
+    const v = +b.dataset.pre;
+    /* Volver a tocar el mismo lo borra: cambiar de idea antes de entrar no es un dato
+       perdido, y obligar a dejar algo escrito sería forzar la respuesta. */
+    DATOS.chequeos = (DATOS.chequeos || []).filter(x => x !== viva);
+    if (!viva || viva.pre !== v) DATOS.chequeos.push({ pre: v, ts: Date.now() });
+    guardar(); render();
+  };
+}
+
+/* ===== 4.3 — La lectura del cierre =====
+   **Solo aparece si hubo pronóstico.** No es un detalle de interfaz: sin un pronóstico
+   contra el cual medirla, la respuesta del cierre está determinada por el resultado y sería
+   el error #4 con la coartada de que lo dijo él. Eso corta el volumen a la mitad y elimina
+   justo las respuestas que serían PnL. */
+function renderPostCheck(s) {
+  const el = $('postCheck');
+  if (!el) return;
+  const T = (s.trades || []);
+  /* La última cerrada con pronóstico y sin lectura, y solo si es reciente: preguntar por
+     una operación de anteayer mide memoria y no reacción. */
+  const pend = T.filter(t => t.pronostico != null && t.movio == null &&
+    t.exitTime && Date.now() - t.exitTime <= CHEQ_VIGENCIA).pop();
+  el.classList.toggle('hide', !pend);
+  if (!pend) return;
+  el.innerHTML = `<div class="pchk">
+    <div class="pcq">Cerró ${pend.symbol} ${pend.side} en ${usd(pend.net)}. ¿Cuánto te movió?</div>
+    <div class="pcfila">${CHEQ_NIVELES.map(n =>
+      `<button class="pcb" data-post="${n.n}">${drillInclinado(n.grados, false)}
+         <span>${n.label}</span></button>`).join('')}</div>
+    <div class="hint">Dijiste <b>${(CHEQ_NIVELES.find(x => x.n === pend.pronostico) || {}).label}</b> antes de entrar.
+      Podés no contestar y el par queda sin cerrar, que no es lo mismo que un cero.</div>
+  </div>`;
+  for (const b of el.querySelectorAll('[data-post]')) b.onclick = () => {
+    DATOS.movidas[pend.id] = { movio: +b.dataset.post, ts: Date.now() };
+    guardar(); render();
+  };
+}
+
+/* ===== Declarar antes =====
+   Douglas arranca por acá: el setup se define antes de entrar. Una etiqueta puesta después
+   no dice por qué entraste, dice cómo te explicaste lo que pasó. La app no opina sobre el
+   contenido de la tesis —eso sería prescripción de mercado— solo registra si la escribiste
+   antes y después mide las declaradas contra el resto. */
+function renderDeclarar(s) {
+  const D = DATOS.declaraciones || [];
+  const viva = D.filter(x => !x.usada && Date.now() - x.ts <= 4 * 36e5).pop();
+  const ed = edgeDeclarado(s.trades || []);
+  const comp = ed && ed.comparable
+    ? `<div class="mn" style="margin-top:8px">De tus ${ed.n} operaciones, ${ed.declaradas} salieron de una tesis
+       escrita antes: ${usd(ed.avg)} por operación contra ${usd(ed.avgResto)} de las otras ${ed.nResto}.</div>`
+    : ed && ed.declaradas
+      ? `<div class="mn" style="margin-top:8px">Llevás ${ed.declaradas} de ${ed.n} declaradas antes de entrar.
+         Con cinco de cada lado se pueden comparar.</div>`
+      : '';
+
+  $('declarar').innerHTML = `<div class="decl">
+    ${viva
+      ? `<div class="mv ok">Declarada: <b>${esc(viva.tesis)}</b>. Se pega a la próxima que abras.</div>
+         <button id="declBorrar" style="margin-top:8px">Borrar</button>`
+      : `<div class="campo" style="gap:8px">Por qué vas a entrar
+           <select id="declTesis">${TESIS.map(x => `<option value="${x}">${x || '—'}</option>`).join('')}</select>
+           <button class="primary" id="declOk">Declarar</button></div>
+         <div class="hint">Se guarda ahora y se pega a la próxima operación que abras dentro de las cuatro horas.</div>`}
+    ${comp}</div>`;
+
+  const ok = $('declOk');
+  if (ok) ok.onclick = () => {
+    const v = $('declTesis').value;
+    if (!v) return;
+    DATOS.declaraciones.push({ tesis: v, ts: Date.now() });
+    /* 4.2 — Acá vivía `filter(x => x.usada || Date.now() - x.ts <= 4h)`, y el comentario
+       decía "no se acumula historia muerta". Estaba al revés, y quién marca la caducidad
+       vive ahora en `caducarDeclaraciones`, que corre en cada ingesta. */
+    caducarDeclaraciones(DATOS.declaraciones);
+    guardar(); render();
+  };
+  const bo = $('declBorrar');
+  if (bo) bo.onclick = () => {
+    DATOS.declaraciones = DATOS.declaraciones.filter(x => x !== viva);
+    guardar(); render();
+  };
 }
 
 /* tamaño = riesgo / distancia al stop. Todo lo demás sale de ahí. */
@@ -1476,6 +2520,17 @@ function calcular() {
   if (lev) c.push(`<div><span>Apalancamiento</span><b>${lev.toFixed(1)}x</b></div>`);
   if (liq != null) c.push(`<div class="${mal ? 'mal' : ''}"><span>Liquidación a</span>
     <b class="${mal ? 'down' : ''}">${liq.toFixed(1)}%</b></div>`);
+  /* La holgura, antes de entrar. `holguraHist` la mide con la posición ya abierta, pero
+     según el error #3 de CLAUDE.md es *la* variable —con colateral chico y órdenes mínimas
+     el apalancamiento es la entrada, no una decisión de riesgo— y acá ya está todo para
+     calcularla: distancia a la liquidación sobre distancia al stop.
+
+     Sin color que cambie con el número, a propósito. El caso degenerado —el stop más lejos
+     que la liquidación, o sea holgura ≤ 1— ya lo marca `mal` en la caja de liquidación, y
+     agregarle un segundo semáforo a la misma condición la contaría dos veces. Todo lo que
+     está por encima de 1 es geometría de la operación, no una nota. */
+  if (liq != null && stop > 0) c.push(`<div><span>Holgura</span><b>${(liq / stop).toFixed(1)}x</b>
+    <small class="mut">más lejos que tu stop</small></div>`);
   $('calc').innerHTML = c.join('');
   $('prepNotas').dataset.mal = mal ? '1' : '';
 }
@@ -1553,15 +2608,143 @@ function renderKpis(s) {
   $('kpis').innerHTML = k.join('');
 }
 
+/* ===== Aviso de muestra chica =====
+   Va arriba de todo y solo con menos de 5 operaciones cerradas. La lista de piezas dice
+   desde cuántas operaciones se calcula cada cosa: es la aritmética de la app, no una meta.
+   Sin barra de progreso y sin "te faltan N" a propósito — eso convierte operar en un
+   trámite para desbloquear pantallas, que es exactamente lo contrario de para qué está. */
+function renderMuestra(base) {
+  const m = muestra(base);
+  $('muestraPanel').classList.toggle('hide', !m);
+  if (!m) return;
+  const piezas = m.piezas.filter(p => !p.listo)
+    .map(p => `<li><b>${p.nombre}</b> <span class="mut">— desde ${p.desde} operaciones cerradas: ${p.que}</span></li>`).join('');
+  $('muestraPanel').innerHTML =
+    `<h2>${m.titulo}</h2>` +
+    `<div class="ins info"><div class="d">${m.texto}</div></div>` +
+    (piezas ? `<ul class="mlista">${piezas}</ul>` : '') +
+    `<div class="hint">${m.pie}</div>`;
+}
+
+/* Dos bloques, no uno. Arriba lo que hiciste, abajo cómo salió. La separación es el
+   contenido: mezcladas, una lectura de PnL sobre treinta muestras pesaba lo mismo que una
+   conducta que elegís en cada operación, y no pesan lo mismo. */
+/* ===== El ejercicio =====
+   Douglas: reglas elegidas en frío, N repeticiones, sin desviarse. El panel muestra el
+   contador porque acá es donde el usuario lo fue a buscar; Taladro no lo dice nunca. */
+function renderEjerc(s) {
+  const e = s.ejercicio;
+  const p = $('ejercPanel');
+  const hayBase = (s.trades || []).length >= 8;
+  p.classList.toggle('hide', !hayBase);
+  if (!hayBase) return;
+
+  /* Una serie declarada contra una regla que la app ya no mide. Pasa cuando se borra un
+     hábito —3.2 borró `corte`— y es lo único de todo este panel que el usuario no puede
+     provocar: le cambió el criterio sin que él tocara nada. Se dice y se ofrece arrancar
+     de nuevo, en vez de dejar la serie corriendo con menos reglas o desaparecerla. */
+  if (e && e.vacia) {
+    p.innerHTML = `<h2>Serie sin reglas medibles</h2>
+      <div class="mn">La habías declarado contra ${e.ignoradas.map(x => `<b>${x}</b>`).join(' y ')},
+        y esa conducta ya no se mide.</div>
+      <div class="hint">No se cortó por nada que hayas hecho: cambió la app. Lo que llevabas
+        hecho no se puede juzgar contra reglas que ya no existen, así que la serie arranca de cero.</div>
+      <button class="primary" id="ejReset" style="margin-top:10px">Empezar otra</button>`;
+    $('ejReset').onclick = () => { DATOS.ejerc = null; guardar(); render(); };
+    return;
+  }
+
+  if (!e) {
+    const H = habitos(s.trades || [], s);
+    p.innerHTML = `<h2>Una serie</h2>
+      <div class="hint">Elegís las reglas y cuántas veces las vas a sostener. El veredicto es de
+        conducta: veinte perdedoras ejecutadas al pie de la letra son una serie perfecta.
+        Salirte del sistema la cancela; parar unos días, no.</div>
+      <div class="ejReglas">${H.map(h =>
+        `<label class="ejChk"><input type="checkbox" data-ej="${h.id}"${
+          ['perdida', 'tamano', 'intacto'].includes(h.id) ? ' checked' : ''}> ${h.nombre}</label>`).join('')}</div>
+      <div class="row" style="margin-top:10px;align-items:center">
+        <label class="campo">Repeticiones
+          <select id="ejN">${EJ_N.map(n => `<option${n === 20 ? ' selected' : ''}>${n}</option>`).join('')}</select></label>
+        <button class="primary" id="ejStart">Empezar</button>
+      </div>`;
+    $('ejStart').onclick = () => {
+      const reglas = [...p.querySelectorAll('[data-ej]')].filter(x => x.checked).map(x => x.dataset.ej);
+      if (!reglas.length) return;
+      const T = s.trades || [];
+      DATOS.ejerc = { n: +$('ejN').value, reglas, inicio: Date.now(),
+        desde: T.length ? (T[T.length - 1].exitTime || T[T.length - 1].entryTime) : 0 };
+      guardar(); render();
+    };
+    return;
+  }
+
+  /* El tilt la cancela, y la marca queda guardada: si volvés mañana, la serie sigue
+     cancelada aunque el tilt ya se haya apagado por descanso. Salirse del sistema pasó. */
+  if (s.tilt && s.tilt.activo && DATOS.ejerc && DATOS.ejerc.cancelado !== 'tilt') {
+    DATOS.ejerc.cancelado = 'tilt'; guardar();
+  }
+
+  const barra = e.serie.map(x => `<span class="ejP ${x.ok ? 'ok' : 'no'}"></span>`).join('') +
+    '<span class="ejP vac"></span>'.repeat(Math.max(0, e.n - e.serie.length));
+
+  if (e.cancelado) {
+    p.innerHTML = `<h2>Serie cancelada</h2>
+      <div class="ejBarra">${barra}</div>
+      <div class="mn">Llegaste a ${e.hechas} de ${e.n} con ${e.cumplidas} adentro de tus reglas.
+        Se cortó porque te saliste del sistema, no porque hayas perdido.</div>
+      <div class="hint">Perder todas respetando las reglas no la habría tocado.</div>
+      <button class="primary" id="ejReset" style="margin-top:10px">Empezar otra</button>`;
+  } else if (e.completo) {
+    p.innerHTML = `<h2>Serie terminada</h2>
+      <div class="ejBarra">${barra}</div>
+      <div class="mn"><b>${e.veredicto.cumplidas} de ${e.veredicto.n}</b> salieron con las reglas que
+        escribiste: ${e.reglas.map(r => r.nombre.toLowerCase()).join(', ')}.</div>
+      <div class="hint">No dice nada sobre cuánta plata hiciste, y esa es la idea.</div>
+      <button class="primary" id="ejReset" style="margin-top:10px">Empezar otra</button>`;
+  } else {
+    p.innerHTML = `<h2>Serie en curso</h2>
+      <div class="ejBarra">${barra}</div>
+      <div class="mn">${e.cumplidas} de ${e.hechas} adentro de tus reglas.</div>
+      <div class="hint">${e.reglas.map(r => r.accion).join(' · ')}</div>
+      <button id="ejReset" style="margin-top:10px">Abandonar</button>`;
+  }
+  const b = $('ejReset');
+  if (b) b.onclick = () => { DATOS.ejerc = null; guardar(); render(); };
+}
+
+/* Las cinco verdades no tienen render propio: viven en el repertorio de Taladro
+   y salen de a una al tocarlo. Ver el comentario al final de `repertorio`. */
+
 function renderInsights(s) {
   const ins = buildInsights(s);
-  $('insights').innerHTML = ins.length
-    ? ins.map(i => `<div class="ins ${i.level}"><div class="t">${i.title}</div><div class="d">${i.text}</div></div>`).join('')
-    : '<div class="mut">Sin operaciones cerradas para analizar con estos filtros.</div>';
+  if (!ins.length) {
+    $('insights').innerHTML = '<div class="mut">Sin operaciones cerradas para analizar con estos filtros.</div>';
+    return;
+  }
+  const tarjeta = i => `<div class="ins ${i.level}"><div class="t">${i.title}</div><div class="d">${i.text}</div></div>`;
+  const de = c => ins.filter(i => i.clase === c);
+  const bloque = (c, titulo, bajada) => {
+    const l = de(c);
+    return l.length
+      ? `<div class="insGrupo"><h3 class="insH">${titulo}<span class="mut"> — ${bajada}</span></h3>${l.map(tarjeta).join('')}</div>`
+      : '';
+  };
+  $('insights').innerHTML =
+    de('aviso').map(tarjeta).join('') +
+    bloque('accion', 'Lo que hiciste', 'depende de vos y se repite') +
+    bloque('resultado', 'Cómo salió', 'el mismo PnL cortado de varias maneras; con muestra chica describe sobre todo el azar de la muestra');
 }
 
 /* ===================== gráficos ===================== */
-const GRID = '#242d3a', TICK = '#7d8896';
+/* Los gráficos no leen CSS: hay que pasarles el color a mano. Se resuelve en cada
+   render contra las variables vivas, así cambiar de tema los repinta sin código aparte. */
+const cssVar = (n, fb) => (getComputedStyle(document.documentElement).getPropertyValue(n) || '').trim() || fb;
+const GRID = () => cssVar('--line', '#242d3a');
+const TICK = () => cssVar('--mut', '#7d8896');
+const PANEL2 = () => cssVar('--panel2', '#1a212b');
+const VERDE = () => cssVar('--up', '#3fb950');
+const ROJO = () => cssVar('--down', '#f85149');
 const SESCOL = { asia: '#8b7cf6', hueco: '#4b5568', pre: '#d8a640', rueda: '#58a6ff', after: '#e07a5f', finde: '#3a4356' };
 /* a qué sesión pertenece una hora de Buenos Aires, por dónde arranca */
 const sesDeHora = h => h <= 3 || h >= 21 ? 'asia' : h === 4 ? 'hueco'
@@ -1582,31 +2765,31 @@ function renderRelojAct(s) {
     o += `<path d="M${x1} ${y1} A${R} ${R} 0 ${(a - de) > 12 ? 1 : 0} 1 ${x2} ${y2}"
       stroke="${SESCOL[id]}" stroke-width="7" fill="none" opacity=".85"><title>${SESSIONS[id].label}</title></path>`;
   }
-  o += `<circle cx="${cx}" cy="${cy}" r="${r0}" fill="none" stroke="${GRID}" stroke-width="1.5"/>`;
+  o += `<circle cx="${cx}" cy="${cy}" r="${r0}" fill="none" stroke="${GRID()}" stroke-width="1.5"/>`;
   for (let h = 0; h < 24; h++) {
     const b = s.byHour[h]; if (!b || !b.n) continue;
     const r1 = r0, r2 = r0 + (b.n / maxN) * esc;
     const a1 = ang(h) + 0.014, a2 = ang(h + 1) - 0.014;
     const [q1, q2] = P(a1, r1), [q3, q4] = P(a2, r1), [q5, q6] = P(a2, r2), [q7, q8] = P(a1, r2);
     o += `<path d="M${q1} ${q2} A${r1} ${r1} 0 0 1 ${q3} ${q4} L${q5} ${q6} A${r2} ${r2} 0 0 0 ${q7} ${q8} Z"
-      fill="${b.net > 0 ? '#3fb950' : b.net < 0 ? '#f85149' : TICK}" opacity=".92">
+      fill="${b.net > 0 ? VERDE() : b.net < 0 ? ROJO() : TICK()}" opacity=".92">
       <title>${String(h).padStart(2, '0')}:00 · ${b.n} operaciones · ${usd(b.net)}</title></path>`;
   }
   for (let h = 0; h < 24; h += 3) {
     const [tx, ty] = P(ang(h + 0.5), r0 + 76);
-    o += `<text x="${tx}" y="${ty + 3}" font-size="9.5" fill="${TICK}" text-anchor="middle">${String(h).padStart(2, '0')}</text>`;
+    o += `<text x="${tx}" y="${ty + 3}" font-size="9.5" fill="${TICK()}" text-anchor="middle">${String(h).padStart(2, '0')}</text>`;
   }
-  o += `<text x="${cx}" y="${cy + 4}" font-size="10" fill="${TICK}" text-anchor="middle">${s.n} operaciones</text>`;
+  o += `<text x="${cx}" y="${cy + 4}" font-size="10" fill="${TICK()}" text-anchor="middle">${s.n} operaciones</text>`;
   $('relojAct').innerHTML = `<svg viewBox="0 0 ${S} ${S}" style="width:100%;max-width:300px;margin:0 auto;display:block">${o}</svg>`;
 }
 function chart(id, cfg) {
   if (CHARTS[id]) CHARTS[id].destroy();
   const base = {
     responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1a212b', borderColor: GRID, borderWidth: 1 } },
+    plugins: { legend: { display: false }, tooltip: { backgroundColor: PANEL2(), borderColor: GRID(), borderWidth: 1 } },
     scales: {
-      x: { grid: { color: GRID }, ticks: { color: TICK, maxRotation: 0, autoSkipPadding: 18 } },
-      y: { grid: { color: GRID }, ticks: { color: TICK, callback: v => '$' + v.toLocaleString('es-AR') } }
+      x: { grid: { color: GRID() }, ticks: { color: TICK(), maxRotation: 0, autoSkipPadding: 18 } },
+      y: { grid: { color: GRID() }, ticks: { color: TICK(), callback: v => '$' + v.toLocaleString('es-AR') } }
     }
   };
   const o = cfg.options || {};
@@ -1616,9 +2799,28 @@ function chart(id, cfg) {
   });
   CHARTS[id] = new Chart($(id), cfg);
 }
-const barColors = arr => arr.map(v => v >= 0 ? '#3fb950' : '#f85149');
+const barColors = arr => arr.map(v => v >= 0 ? VERDE() : ROJO());
+
+/* El período arranca en "hoy". Un día sin operar dejaba seis paneles de gráfico vacíos,
+   con título y sin una línea que dijera por qué: parecía roto. Los KPIs ya avisaban
+   "Sin datos", los gráficos no. */
+function renderVacio(s) {
+  const vacio = !s.n;
+  $('graficos').classList.toggle('hide', vacio);
+  $('vacio').classList.toggle('hide', !vacio);
+  if (!vacio) return;
+  const desde = $('fFrom').value, hasta = $('fTo').value;
+  const dia = desde && desde === hasta;
+  $('vacio').innerHTML = `<h2>Sin operaciones en este período</h2>` +
+    `<div class="mut">No hay ninguna operación cerrada ${dia ? 'ese día' : 'en ese rango'}` +
+    `${$('fSym').value ? ` en ${$('fSym').value}` : ''}${$('fSide').value ? ` del lado ${$('fSide').value}` : ''}. ` +
+    `Los gráficos y los KPIs se calculan sobre lo filtrado, así que quedan en blanco.</div>` +
+    `<div class="hint">El período arranca en el día de hoy. <b>Todo</b>, arriba, abre el historial completo. ` +
+    `Los paneles de más arriba —hábitos, rachas, preparación— usan el historial entero y no dependen de este filtro.</div>`;
+}
 
 function renderCharts(s, sel) {
+  renderVacio(s);
   if (!s.n) { Object.values(CHARTS).forEach(c => c.destroy()); CHARTS = {}; return; }
 
   chart('cEquity', {
@@ -1626,24 +2828,35 @@ function renderCharts(s, sel) {
     data: {
       labels: s.equity.map(p => new Date(p.time).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })),
       datasets: [{
-        data: s.equity.map(p => p.cum), borderColor: s.net >= 0 ? '#3fb950' : '#f85149',
-        backgroundColor: (s.net >= 0 ? '#3fb95022' : '#f8514922'), fill: true, tension: .15,
+        data: s.equity.map(p => p.cum), borderColor: s.net >= 0 ? VERDE() : ROJO(),
+        backgroundColor: (s.net >= 0 ? VERDE() + '22' : ROJO() + '22'), fill: true, tension: .15,
         pointRadius: 0, borderWidth: 2
       }]
     }
   });
 
-  const cuenta = serieCuenta(RAW && RAW.portfolio);
+  /* `serieTotal` y no `serieCuenta`: en HIP-3 cada dex lleva su propio margen y
+     `RAW.portfolio` es un mapa por dex. Pasarle el mapa entero a `serieCuenta` hacía que
+     el gráfico mostrara el colateral de uno solo con el rótulo de la cuenta. */
+  const cuenta = serieTotal(RAW && RAW.portfolio);
   $('cuentaPanel').classList.toggle('hide', cuenta.length < 2);
   if (cuenta.length >= 2) {
     chart('cCuenta', {
       type: 'line',
       data: {
         labels: cuenta.map(p => new Date(p.time).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })),
-        datasets: [{ data: cuenta.map(p => p.v), borderColor: '#58a6ff', backgroundColor: '#58a6ff22',
+        datasets: [{ data: cuenta.map(p => p.v), borderColor: cssVar('--acc', '#58a6ff'), backgroundColor: cssVar('--acc', '#58a6ff') + '22',
           fill: true, tension: .15, pointRadius: 0, borderWidth: 2 }]
       }
     });
+    /* Cuántos dexes forman la curva, y si hubo tramos donde alguno todavía no existía.
+       Sin esto, una suma de dos cuentas y una sola cuenta se ven idénticas. */
+    const nd = Math.max(...cuenta.map(p => p.dexes));
+    const parciales = cuenta.filter(p => p.parcial).length;
+    const nota = $('cuentaNota');
+    if (nota) nota.textContent = nd > 1
+      ? `Suma de ${nd} dexes.` + (parciales ? ` En ${parciales} de ${cuenta.length} puntos no todos tenían serie todavía.` : '')
+      : '';
   }
 
   const sess = Object.entries(s.bySession).sort((a, b) => b[1].net - a[1].net);
@@ -1695,8 +2908,8 @@ function renderCharts(s, sel) {
   chart('cDist', {
     type: 'bar',
     data: { labels: mids.map(m => usd0(m)), datasets: [{ data: bins, backgroundColor: barColors(mids) }] },
-    options: { scales: { x: { grid: { color: GRID }, ticks: { color: TICK, maxRotation: 0, autoSkipPadding: 12 } },
-      y: { grid: { color: GRID }, ticks: { color: TICK, precision: 0, callback: v => v } } } }
+    options: { scales: { x: { grid: { color: GRID() }, ticks: { color: TICK(), maxRotation: 0, autoSkipPadding: 12 } },
+      y: { grid: { color: GRID() }, ticks: { color: TICK(), precision: 0, callback: v => v } } } }
   });
 }
 
@@ -1741,7 +2954,9 @@ function renderTables(sel) {
     </td></tr>`;
   };
   $('tTrades').innerHTML =
-    '<thead><tr>' + COLS.map(c => `<th data-k="${c[0]}">${c[1]}${SORT.k === c[0] ? (SORT.dir > 0 ? ' ↑' : ' ↓') : ''}</th>`).join('') +
+    '<thead><tr>' + COLS.map(c => `<th data-k="${c[0]}" tabindex="0" aria-sort="${
+      SORT.k === c[0] ? (SORT.dir > 0 ? 'ascending' : 'descending') : 'none'
+    }">${c[1]}${SORT.k === c[0] ? (SORT.dir > 0 ? ' ↑' : ' ↓') : ''}</th>`).join('') +
     '<th class="nc">Nota</th></tr></thead><tbody>' +
     rows.map(t => {
       const n = DATOS.notas[t.id] || {};
@@ -1751,10 +2966,25 @@ function renderTables(sel) {
         (ABIERTA === t.id ? editor(t) : '');
     }).join('') + '</tbody>';
 
-  $('tTrades').querySelectorAll('th[data-k]').forEach(th => th.onclick = () => {
-    const k = th.dataset.k;
+  /* Ordenar era solo por click, así que sin mouse la tabla no se podía ordenar. Los th
+     ahora son focusables y responden a Enter y Espacio. Como renderTables() reescribe el
+     innerHTML entero, el th que tocaste deja de existir y el foco se caería al body: por
+     eso se vuelve a buscar por data-k después de redibujar. */
+  const ordenarPor = (k, conFoco) => {
     SORT = { k, dir: SORT.k === k ? -SORT.dir : -1 };
     renderTables(sel);
+    if (conFoco) {
+      const nuevo = $('tTrades').querySelector(`th[data-k="${k}"]`);
+      if (nuevo && nuevo.focus) nuevo.focus();
+    }
+  };
+  $('tTrades').querySelectorAll('th[data-k]').forEach(th => {
+    th.onclick = () => ordenarPor(th.dataset.k, false);
+    th.onkeydown = e => {
+      if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+      e.preventDefault();          // si no, Espacio scrollea la página
+      ordenarPor(th.dataset.k, true);
+    };
   });
   $('tTrades').querySelectorAll('[data-abrir]').forEach(b => b.onclick = () => {
     ABIERTA = ABIERTA === b.dataset.abrir ? null : b.dataset.abrir;
@@ -1774,7 +3004,15 @@ function renderTables(sel) {
     if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') el.onblur = grabar;
   });
 
-  const open = sel.filter(t => t.open);
+  /* Las abiertas salen de `filtered(true)` y no de `sel`, y no es un detalle de tabla.
+     Una posición abierta es un **estado**, no un evento adentro de un rango: si entró
+     antes del período, filtrarla por fecha la borra de la pantalla mientras
+     `analyzePositions` —que lee LIVE y no el filtro— sigue avisando sobre ella. La app
+     quedaba diciendo "estás sin stop" y escondiendo la posición de la que hablaba.
+     Es el mismo argumento que ya usan `renderEjerc` y el repertorio con `filtered(true)`:
+     cambiar el rango de fechas no puede hacer desaparecer algo que no terminó. Los demás
+     filtros —dex, símbolo, lado— sí se respetan, porque esos sí describen qué mirás. */
+  const open = filtered(true).filter(t => t.open);
   $('openPanel').classList.toggle('hide', !open.length);
   if (open.length) {
     $('tOpen').innerHTML =
@@ -1827,14 +3065,36 @@ $('go').onclick = async () => {
   $('go').disabled = false;
 };
 $('loadBtn').onclick = () => $('file').click();
+/* Se arma copiando `j` y poniendo defaults arriba, **no** con un literal de campos.
+   El literal era el bug: listaba `user`, `fills`, `funding`, `state` y `pulledAt`, y se
+   comía `portfolio`, `orders` y `dexes` en silencio. Sin `portfolio` no corre
+   `anotarExposicion` y `escalaTamano` devuelve notional crudo en vez de exposición — no
+   `null`, que la invariante 2 sabe manejar, sino un número equivocado con el que después
+   los hábitos se pintan y `tilt` y `aire` deciden.
+
+   Y era el camino más usado: es el que la app recomienda cuando CORS bloquea el pedido y
+   el único modo de probar sin wallet. O sea, la rama degradada era la de desarrollo.
+
+   Copiar en vez de listar es lo que hace que no vuelva a pasar: el próximo campo que se
+   agregue a `RAW` pasa solo. Un literal exige que alguien se acuerde de dos lugares, y la
+   forma de fallar es callada. El `Array.isArray` va aparte porque un array pelado —el
+   formato viejo, solo fills— convertido con Object.assign entra como claves 0, 1, 2. */
+function desdeArchivo(j) {
+  const base = (j && typeof j === 'object' && !Array.isArray(j)) ? j : {};
+  return Object.assign({}, base, {
+    user: base.user || '',
+    fills: base.fills || (Array.isArray(j) ? j : []),
+    funding: base.funding || [],
+    state: base.state || null,
+    pulledAt: base.pulledAt || Date.now()
+  });
+}
 $('file').onchange = e => {
   const f = e.target.files[0]; if (!f) return;
   const r = new FileReader();
   r.onload = () => {
-    try {
-      const j = JSON.parse(r.result);
-      ingest({ user: j.user || '', fills: j.fills || (Array.isArray(j) ? j : []), funding: j.funding || [], state: j.state || null, pulledAt: j.pulledAt || Date.now() });
-    } catch (err) { say('No pude leer ese archivo: ' + err.message, true); }
+    try { ingest(desdeArchivo(JSON.parse(r.result))); }
+    catch (err) { say('No pude leer ese archivo: ' + err.message, true); }
   };
   r.readAsText(f);
 };
@@ -1869,6 +3129,7 @@ async function refrescar() {
     attachFunding(TRADES, RAW.funding || []);
     aplicarNotas(TRADES);
     LIVE = flattenLive(RAW);
+    anotarHolgura();
     render();
     $('vivo').innerHTML = `<span class="up">●</span> en vivo · ${new Date().toLocaleTimeString('es-AR')}`;
   } catch (e) {
@@ -1885,10 +3146,12 @@ function envivo(on) {
 $('btnVivo').onclick = () => envivo(!$('btnVivo').dataset.on);
 ['stopPct', 'riesgo'].forEach(id => $(id).oninput = () => { $(id).dataset.tocado = '1'; calcular(); });
 
-$('destapar').onclick = () => {
+const destapadores = ['destapar', 'destaparAire'];
+const alternarDestape = () => {
   const d = document.body.classList.toggle('destapado');
-  $('destapar').textContent = d ? 'Volver a taparlos' : 'Mostrar los números igual';
+  destapadores.forEach(id => { $(id).textContent = d ? 'Volver a taparlos' : 'Mostrar los números igual'; });
 };
+destapadores.forEach(id => { $(id).onclick = alternarDestape; });
 $('cierra').onclick = e => {
   e.stopPropagation();
   const id = $('tal').dataset.vozId, ms = +$('tal').dataset.vozMs || 6 * 36e5;
@@ -1903,10 +3166,11 @@ $('cierra').onclick = e => {
 /* Cada toque es una cosa distinta: algo para probar, algo que no estás mirando,
    o algo del proceso. El índice se guarda, así que no te repite entre sesiones. */
 /* Al tocarlo viene al centro y grande: cada toque es una cosa distinta. */
-const TIPOS = { probar: ['ok', 'para probar'], mirar: ['info', 'no lo estás mirando'], proceso: ['seco', 'tu proceso'] };
+const TIPOS = { probar: ['ok', 'para probar'], mirar: ['info', 'no lo estás mirando'], proceso: ['seco', 'tu proceso'],
+                verdad: ['info', 'lo que ya sabés'] };
 function siguienteDelRepertorio() {
   if (!TRADES.length) return null;
-  const base = filtered(true), s = computeStats(base);
+  const base = filtered(true), s = computeStats(base, DATOS.holguras, RAW && RAW.portfolio, null, DATOS.ejerc, DATOS.banda);
   const pos = (LIVE && LIVE.pos.length) ? analyzePositions(LIVE.pos, LIVE.ord, s) : [];
   const R = repertorio(s, pos, todayBySession(base));
   if (!R.length) return null;
@@ -1920,7 +3184,7 @@ const ACCIONES = {
   anotar: () => {
     cerrarFoco();
     $('detalle').classList.remove('hide');
-    $('verMas').textContent = tapa(DATOS.tapa)[1];
+    rotularVerMas();
     setPreset('all');                       // la última operación tiene que estar en la tabla
     const T = TRADES.filter(t => !t.open);
     if (!T.length) return;
@@ -1946,13 +3210,48 @@ function abrirFoco() {
   const a = x.it.accion;
   $('facc').innerHTML = a && ACCIONES[a.id] ? `<button class="fbtn" data-acc="${a.id}">${a.texto}</button>` : '';
   $('fpie').innerHTML = `<b>${x.i + 1}</b> de ${x.total} · tocá para la siguiente · Esc para cerrar`;
+  /* El foco entra a la caja y se queda ahí: `abrirFoco` reescribe lo de adentro pero no
+     `.fcaja`, así que avanzar con Enter no lo pierde. Con mouse no se ve el anillo, que
+     hoy va por `:focus-visible`. */
+  try { $('fcaja').focus(); } catch (e) {}
 }
-const cerrarFoco = () => { $('foco').className = 'foco'; };
+/* ===== Teclado en el modal (5.4) =====
+   `#foco` no es un formulario, es un carrusel: clic adentro avanza, clic afuera cierra. La
+   receta estándar de diálogo —`role="dialog"` más `.focus()` en el botón primario— haría
+   que Enter dispare la acción en vez de avanzar, que es lo contrario de lo que hace el
+   mouse. Así que la caja entera es el control: `role="button"`, `tabindex="0"`, y Enter y
+   Espacio van al mismo handler que el clic.
+
+   Funciona porque `abrirFoco()` reescribe `#fsvg`, `#ftx` y `#facc` pero **no** `.fcaja`:
+   el elemento con foco sobrevive a cada avance sin que haya que devolvérselo a mano. Si
+   algún día `abrirFoco` pasa a recrear la caja, esto se rompe en silencio — el foco se
+   caería al `body` y el carrusel dejaría de avanzar con el teclado después del primero. */
+const cerrarFoco = () => {
+  const abierto = $('foco').classList.contains('on');
+  $('foco').className = 'foco';
+  /* El foco vuelve de donde vino, o queda flotando en un elemento invisible. */
+  if (abierto) { try { $('cuerpo').focus(); } catch (e) {} }
+};
+/* `#cuerpo` ya es un `<button>`, así que Enter y Espacio disparan su `onclick` solos. Un
+   `onkeydown` propio acá avanzaría dos ítems por tecla — el del teclado y el del click
+   sintético que el navegador dispara igual. */
 $('cuerpo').onclick = abrirFoco;
-$('foco').onclick = e => {
+const avanzarOAccion = e => {
   const b = e.target.closest('[data-acc]');
-  if (b) { e.stopPropagation(); (ACCIONES[b.dataset.acc] || (() => {}))(); return; }
+  if (b) { e.stopPropagation(); (ACCIONES[b.dataset.acc] || (() => {}))(); return true; }
+  return false;
+};
+$('foco').onclick = e => {
+  if (avanzarOAccion(e)) return;
   if (e.target.closest('.fcaja')) abrirFoco(); else cerrarFoco();
+};
+$('fcaja').onkeydown = e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  e.preventDefault();
+  /* Con el foco en el botón de acción, Enter dispara la acción: es lo mismo que hace el
+     clic ahí, y el `closest` del handler de clic ya resuelve ese caso igual. */
+  if (avanzarOAccion(e)) return;
+  abrirFoco();
 };
 document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarFoco(); });
 /* El botón nunca dice lo mismo dos veces seguidas. Cada par es abrir y cerrar
@@ -1974,19 +3273,49 @@ const TAPAS = [
   ['Lo que hay abajo', 'Ya vi lo que había']
 ];
 function tapa(i) { return TAPAS[(i || 0) % TAPAS.length]; }
+/* El rótulo y el aria-expanded se ponen juntos y en un solo lugar. Había cuatro puntos
+   distintos que escribían el textContent, así que un quinto estado que se olvidara de
+   avisar era cuestión de tiempo. El texto rota entre catorce chistes; aria-expanded es
+   la versión de eso que puede leer una máquina. */
+function rotularVerMas() {
+  const oculto = $('detalle').classList.contains('hide');
+  $('verMas').textContent = tapa(DATOS.tapa)[oculto ? 0 : 1];
+  $('verMas').setAttribute('aria-expanded', oculto ? 'false' : 'true');
+}
 $('verMas').onclick = () => {
   const oculto = $('detalle').classList.toggle('hide');
   if (oculto) { DATOS.tapa = ((DATOS.tapa || 0) + 1) % TAPAS.length; guardar(); }
-  $('verMas').textContent = tapa(DATOS.tapa)[oculto ? 0 : 1];
+  rotularVerMas();
   if (!oculto) render();   // los gráficos necesitan el contenedor visible para dimensionarse
 };
 $('reset').onclick = () => { buildFilters(); render(); };
 $('addr').onkeydown = e => { if (e.key === 'Enter') $('go').click(); };
 
 $('linkBtn').onclick = vincularArchivo;
-$('cambiar').onclick = () => { $('setup').classList.remove('compacto'); $('lema').classList.remove('hide'); $('addr').focus(); };
+$('chip').onclick = () => { plegarAlta(false); $('addr').focus(); };
 
-$('verMas').textContent = tapa(DATOS.tapa)[0];
+/* ===== Tema claro / oscuro =====
+   El ícono muestra a dónde vas, no dónde estás. Se guarda en localStorage y no en DATOS
+   porque hay que leerlo antes de pintar, y DATOS vive en IndexedDB, que es asíncrono.
+   Cambiar de tema obliga a rehacer los gráficos: Chart.js copia los colores adentro. */
+const TEMAS = { oscuro: { icono: '☀', fondo: '#0a0d11', a: 'Cambiar a claro' },
+                claro:  { icono: '☾', fondo: '#f4f6f9', a: 'Cambiar a oscuro' } };
+const temaActual = () => document.documentElement.getAttribute('data-tema') === 'claro' ? 'claro' : 'oscuro';
+function aplicarTema(t) {
+  const T = TEMAS[t] || TEMAS.oscuro;
+  document.documentElement.setAttribute('data-tema', t);
+  try { localStorage.setItem('taladro_tema', t); } catch (e) {}
+  const m = document.querySelector('meta[name="theme-color"]');
+  if (m) m.setAttribute('content', T.fondo);
+  $('tema').textContent = T.icono;
+  $('tema').title = T.a;
+  $('tema').setAttribute('aria-label', T.a);
+  if (typeof TRADES !== 'undefined' && TRADES.length) render();
+}
+$('tema').onclick = () => aplicarTema(temaActual() === 'claro' ? 'oscuro' : 'claro');
+aplicarTema(temaActual());
+
+rotularVerMas();
 
 const saved = store.get('tradexyz_addr');
 if (saved) $('addr').value = saved;

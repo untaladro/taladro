@@ -1,0 +1,1338 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Talastrat · modo Merval</title>
+<style>
+  :root{
+    --bg:#0a0d11; --panel:#131820; --panel2:#1a212b; --line:#242d3a;
+    --txt:#e6edf3; --txt2:#b3bdc9; --mut:#7d8896;
+    --acc:#58a6ff; --up:#3fb950; --down:#f85149; --warn:#d29922;
+    --onacc:#06121f; --talbg:#131820;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-size:15px;line-height:1.5;padding:22px 18px 80px}
+  .wrap{max-width:1080px;margin:0 auto}
+  h1{font-size:19px;margin:0;font-weight:650;letter-spacing:-.2px}
+  h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--mut);
+     margin:28px 0 10px;font-weight:600}
+  .sub{color:var(--mut);font-size:12.5px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:15px 17px;margin-bottom:11px}
+  .grid{display:grid;gap:11px}
+  .g2{grid-template-columns:repeat(auto-fit,minmax(330px,1fr))}
+  .g3{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+  .row{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+  .sp{justify-content:space-between}
+
+  /* ===== Taladrín ===== */
+  .tal{display:flex;gap:15px;align-items:center;background:var(--talbg);
+       border:1px solid var(--line);border-radius:11px;padding:15px 18px;margin-bottom:16px}
+  .tal svg{width:84px;height:62px;flex-shrink:0;overflow:visible}
+  .tal .dice{font-size:14.5px;color:var(--txt2);min-height:1.4em}
+  .tal .est{font-size:11px;text-transform:uppercase;letter-spacing:.09em;
+            font-weight:650;margin-bottom:4px}
+  .tal.reposo .est{color:var(--mut)} .tal.alerta .est{color:var(--warn)}
+  .tal.apretado .est{color:var(--down)} .tal.nose .est{color:var(--mut)}
+  .tal .salidas{font-size:12px;color:var(--mut);margin-top:6px}
+  @keyframes flota{0%,100%{transform:translateY(0)}50%{transform:translateY(-2.5px)}}
+  .flota{animation:flota 3.4s ease-in-out infinite;transform-origin:center}
+  @keyframes gira{to{stroke-dashoffset:-8}}
+  .bit{stroke-dasharray:4 4;animation:gira .9s linear infinite}
+  .tal.reposo .bit,.tal.nose .bit{animation-duration:3.4s}
+  @media(prefers-reduced-motion:reduce){.flota,.bit{animation:none}}
+
+  /* ===== tablas y controles ===== */
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th{text-align:left;color:var(--mut);font-weight:600;font-size:10.5px;text-transform:uppercase;
+     letter-spacing:.07em;padding:7px 8px;border-bottom:1px solid var(--line)}
+  td{padding:8px;border-bottom:1px solid #1c2430;vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  .num{text-align:right;font-variant-numeric:tabular-nums}
+  input,select{background:var(--panel2);color:var(--txt);border:1px solid var(--line);
+    border-radius:6px;padding:7px 9px;font-size:13.5px;font-family:inherit;width:100%}
+  input:focus,select:focus{outline:2px solid var(--acc);outline-offset:1px}
+  input.w6{width:78px} input.w8{width:104px}
+  label{font-size:11px;color:var(--mut);display:block;margin-bottom:3px}
+  button{background:var(--acc);color:var(--onacc);border:0;border-radius:7px;
+    padding:8px 15px;font-size:13.5px;font-weight:650;cursor:pointer;font-family:inherit}
+  button:hover{filter:brightness(1.09)}
+  button.sec{background:var(--panel2);color:var(--txt);border:1px solid var(--line)}
+  button.mini{padding:4px 9px;font-size:11.5px}
+  button.del{background:transparent;color:var(--mut);border:1px solid var(--line)}
+  button.del:hover{color:var(--down);border-color:var(--down)}
+
+  .pill{display:inline-block;padding:2px 8px;border-radius:11px;font-size:10.5px;font-weight:650;
+    text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+  .p-ok{background:#3fb95024;color:var(--up);border:1px solid #3fb95059}
+  .p-no{background:#f8514924;color:var(--down);border:1px solid #f8514966}
+  .p-sd{background:#7d889622;color:var(--mut);border:1px solid #7d889647}
+  .p-pend{background:#58a6ff1f;color:var(--acc);border:1px solid #58a6ff55}
+  .p-warn{background:#d2992222;color:var(--warn);border:1px solid #d2992259}
+
+  .big{font-size:25px;font-weight:650;letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+  .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--mut);margin-bottom:5px}
+  .note{font-size:11.5px;color:var(--mut);margin-top:5px;line-height:1.45}
+  .mut{color:var(--mut)} .up{color:var(--up)} .down{color:var(--down)} .warn{color:var(--warn)}
+  .barra{height:6px;background:var(--panel2);border-radius:3px;overflow:hidden;margin-top:7px}
+  .barra i{display:block;height:100%;background:var(--acc);border-radius:3px}
+  .serie{display:flex;gap:3px;margin-top:8px;flex-wrap:wrap}
+  .serie i{width:9px;height:9px;border-radius:2px;background:var(--panel2)}
+  .serie i.ok{background:var(--up)} .serie i.no{background:var(--down)}
+  .serie i.sd{background:#2c3543}
+  .callado{color:var(--mut);font-size:12.5px;font-style:italic}
+  code{background:var(--panel2);padding:1px 5px;border-radius:4px;font-size:12px;
+       font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .rev{border-left:3px solid var(--warn);padding-left:11px;margin:9px 0;font-size:12.5px}
+  .rev .falta{color:var(--down)}
+  .foot{margin-top:34px;padding-top:14px;border-top:1px solid var(--line);font-size:11.5px;color:var(--mut)}
+  .hide{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="row sp" style="margin-bottom:14px">
+    <div>
+      <h1>Talastrat · modo Merval</h1>
+      <div class="sub">Acompaña la ejecución de tu plan. No mira precios, no calcula resultado, no sugiere qué comprar.</div>
+    </div>
+    <div class="sub">v<span id="ver">2026.10.16.1505</span></div>
+  </div>
+
+  <div class="tal nose" id="tal">
+    <div id="drill"></div>
+    <div>
+      <div class="est" id="est">SIN PLAN</div>
+      <div class="dice" id="dice"></div>
+      <div class="salidas" id="salidas"></div>
+    </div>
+  </div>
+
+  <h2>Tu objetivo</h2>
+  <div class="card">
+    <table>
+      <thead><tr><th>Ticker</th><th style="width:100px">Peso %</th><th style="width:150px">Sector</th><th style="width:42px"></th></tr></thead>
+      <tbody id="tObj"></tbody>
+    </table>
+    <div class="row" style="margin-top:11px">
+      <button class="mini sec" id="addObj">+ posición</button>
+      <span class="note" style="margin:0" id="sumaObj"></span>
+    </div>
+  </div>
+
+  <h2>Tus reglas</h2>
+  <div class="card">
+    <div class="grid g3">
+      <div><label for="rMaxPos">Máximo por posición (%)</label><input id="rMaxPos" type="number" min="0" max="100" placeholder="sin declarar"></div>
+      <div><label for="rMaxSec">Máximo por sector (%)</label><input id="rMaxSec" type="number" min="0" max="100" placeholder="sin declarar"></div>
+      <div><label for="rMinPos">Mínimo de posiciones</label><input id="rMinPos" type="number" min="1" placeholder="sin declarar"></div>
+    </div>
+    <div id="contr" style="margin-top:12px"></div>
+  </div>
+
+  <h2>Tramos</h2>
+  <div class="card">
+    <div class="grid" style="grid-template-columns:1.1fr .9fr .9fr .9fr .9fr auto;align-items:end;gap:9px">
+      <div><label for="nTk">Ticker</label><input id="nTk" placeholder="GGAL"></div>
+      <div><label for="nMonto">Monto</label><input id="nMonto" placeholder="100000"></div>
+      <div><label for="nTipo">Tipo de orden</label><select id="nTipo"><option value="limite">límite</option><option value="mercado">mercado</option></select></div>
+      <div><label for="nDesde">Desde</label><input id="nDesde" type="date"></div>
+      <div><label for="nHasta">Hasta</label><input id="nHasta" type="date"></div>
+      <div><button id="addTr">Declarar</button></div>
+    </div>
+    <div class="note">Declarar el tramo antes de mandar la orden es la intervención, no el trámite. El monto acepta <code>100.000,50</code>.</div>
+  </div>
+  <div class="card">
+    <table>
+      <thead><tr><th>Ticker</th><th class="num">Monto</th><th>Tipo</th><th>Ventana</th><th>Estado</th><th>Ejecución</th><th style="width:42px"></th></tr></thead>
+      <tbody id="tTr"><tr><td colspan="7" class="mut">Todavía no declaraste ningún tramo.</td></tr></tbody>
+    </table>
+  </div>
+
+  <h2>Cómo venís ejecutando</h2>
+  <div class="grid g3" id="habs"></div>
+
+  <div class="grid g2">
+    <div class="card">
+      <div class="lbl">Distancia a tu objetivo</div>
+      <div class="big" id="dist">—</div>
+      <div class="barra"><i id="barAv" style="width:0%"></i></div>
+      <div class="note" id="notaTray">Se mide a monto invertido, no a valor de mercado: así el peso solo se mueve cuando comprás vos.</div>
+    </div>
+    <div class="card">
+      <div class="lbl">Tipo de orden</div>
+      <div class="big" id="tecPct">—</div>
+      <div class="note" id="notaTec"></div>
+    </div>
+  </div>
+
+  <h2>Señales</h2>
+  <div class="card" id="senales"></div>
+
+  <h2>Tus datos</h2>
+  <div class="card">
+    <div class="row">
+      <button class="sec" id="expo">Bajar JSON</button>
+      <label for="impo" style="margin:0"><span class="pill p-pend" style="cursor:pointer">Cargar JSON</span></label>
+      <input id="impo" type="file" accept=".json,application/json" class="hide">
+      <button class="del" id="wipe">Borrar todo</button>
+      <span class="note" style="margin:0">Todo vive en este navegador. No sale nada a ningún servidor.</span>
+    </div>
+    <div id="revBox"></div>
+  </div>
+
+  <div class="foot">
+    <b>Esto no es asesoramiento financiero.</b> No sugiere activos, no opina sobre dirección y no calcula rendimiento.
+    Mide una sola cosa: si estás haciendo lo que vos escribiste que ibas a hacer.
+  </div>
+</div>
+
+<script>
+/* Motor del modo Merval — sin DOM, igual que engine.js.
+   Acompaña la ejecución de un plan, no el seguimiento de una cartera.
+
+   La unidad es el TRAMO: una compra prevista con ticker, monto, ventana y tipo de orden
+   declarado antes de mandarla. Un plan de 5 posiciones escalonado en 3 son 15 unidades,
+   y el N se conoce de antemano en vez de depender de que aguante un hábito.
+
+   Tres cosas que este motor no hace, y no por olvido:
+   - no mira el mercado, salvo para una sola pregunta: si un cierre cruzó un nivel que
+     declaró el usuario (ver Reglas de nivel, decisión del 7/10/2026)
+   - no calcula PnL, ni neto, ni retorno
+   - no opina sobre el contenido del plan
+
+   Ver docs/merval.md. */
+
+'use strict';
+
+/* ===== Día de Buenos Aires =====
+   Invariante 4 de CLAUDE.md: un día es un día de Buenos Aires, siempre.
+   Está duplicado de engine.js a propósito —este motor no lo importa— y por eso
+   merval-test.js tiene un test que compara las dos implementaciones contra el mismo
+   timestamp. Si alguien toca una sola, el test lo caza. */
+const BA_OFF = 3 * 36e5;
+function diaBA(ts) { return new Date(ts - BA_OFF).toISOString().slice(0, 10); }
+const DIA = 864e5;
+function diasEntre(a, b) { return Math.round((b - a) / DIA); }
+
+/* ===== Umbrales, y de dónde salió cada uno =====
+   `descartes.md`: un umbral que la app se inventa muere. Los dos que hay acá tienen
+   origen, y los estados que podrían haber llevado umbral (alerta, apretado) no llevan
+   ninguno: se disparan con la ventana que declaró el usuario. */
+
+/* El monto ejecutado no coincide nunca con el declarado porque se compran nominales
+   enteros: 100.000 pesos de una especie a 1.847 dan 54 nominales y 99.738 pesos.
+   No es tolerancia a la desprolijidad, es que la igualdad exacta es imposible. */
+const TOL_MONTO = 0.10;
+
+/* Mismo piso que `MUESTRA_MIN` en engine.js. Debajo de esto el motor devuelve los
+   conteos pero no deja que nadie los llame hallazgo. */
+const MUESTRA_MIN = 5;
+
+/* ===== El estado de un tramo: cuatro valores, no dos =====
+   'como' y 'distinto' son las dos formas de haber ejecutado. 'noEjecutado' no es un
+   hueco de datos: es la conducta, y es la única forma observable de sub-operar —
+   justo lo que docs/hipotesis.md dice que el modo perps está tirando a la basura
+   cuando purga las declaraciones a las 4 horas. Acá nace visible.
+   'pendiente' es el tramo todavía vivo: no se juzga, sale del denominador. */
+function estadoTramo(tr, now) {
+  if (!tr || !tr.ticker || !(tr.monto > 0)) return { estado: 'sinDato', cambios: [], motivo: 'tramo incompleto' };
+
+  const e = tr.ejec;
+  if (!e) {
+    if (tr.hasta == null) return { estado: 'sinDato', cambios: [], motivo: 'sin ventana declarada' };
+    if (now <= tr.hasta) return { estado: 'pendiente', cambios: [], motivo: null };
+    return { estado: 'noEjecutado', cambios: [], motivo: 'venció la ventana' };
+  }
+
+  /* Una orden límite que no se llenó es no-ejecución, pero de otra clase: el usuario
+     hizo lo que dijo y el mercado no vino. Se separa para no confundir la técnica
+     con la voluntad. */
+  if (e.lleno === false) return { estado: 'noEjecutado', cambios: [], motivo: 'la orden no se llenó' };
+
+  const cambios = [];
+  if (e.ticker && e.ticker !== tr.ticker) cambios.push({ campo: 'ticker', de: tr.ticker, a: e.ticker });
+  if (e.tipo && tr.tipo && e.tipo !== tr.tipo) cambios.push({ campo: 'tipo', de: tr.tipo, a: e.tipo });
+  if (e.monto > 0 && Math.abs(e.monto - tr.monto) / tr.monto > TOL_MONTO) {
+    cambios.push({ campo: 'monto', de: tr.monto, a: e.monto });
+  }
+  if (e.ts != null && tr.hasta != null && e.ts > tr.hasta) {
+    cambios.push({ campo: 'ventana', de: tr.hasta, a: e.ts });
+  }
+  return { estado: cambios.length ? 'distinto' : 'como', cambios, motivo: null };
+}
+
+/* Anota el estado en cada tramo una sola vez. Todo lo demás lee `tr._e`. */
+function anotarEstados(plan, now) {
+  const T = (plan && plan.tramos) || [];
+  T.forEach(tr => { tr._e = estadoTramo(tr, now); });
+  return T;
+}
+
+/* ===== Señal 1: desvío de contenido =====
+   Compró algo que no estaba en el plan. Booleano, sin interpretación. */
+function desvioContenido(plan, now) {
+  const T = anotarEstados(plan, now);
+  const objetivo = new Set((plan.objetivo || []).map(o => o.ticker));
+  const ejec = T.filter(tr => tr._e.estado === 'como' || tr._e.estado === 'distinto');
+  const fuera = ejec.filter(tr => {
+    const tk = (tr.ejec && tr.ejec.ticker) || tr.ticker;
+    return !objetivo.has(tk);
+  });
+  return {
+    n: ejec.length,
+    fuera: fuera.map(tr => ({ ticker: (tr.ejec && tr.ejec.ticker) || tr.ticker, monto: tr.ejec.monto, ts: tr.ejec.ts })),
+    pct: ejec.length ? fuera.length / ejec.length : null,
+    /* Sin objetivo declarado no hay contra qué comparar. No es cero: es sin dato. */
+    hay: objetivo.size > 0
+  };
+}
+
+/* ===== Señal 2: desvío de ritmo =====
+   El plan decía tres tramos en seis semanas y entraste todo el primer día. Es la falla
+   más común armando una cartera y no requiere inferir nada: se comparan dos calendarios.
+
+   `concentracion` es días distintos usados sobre tramos ejecutados. Vale 1 cuando cada
+   tramo cayó en su propio día y tiende a 0 cuando se amontonaron. */
+const RITMO_MIN = 3;
+function desvioRitmo(plan, now) {
+  const T = anotarEstados(plan, now);
+  const ejec = T.filter(tr => (tr._e.estado === 'como' || tr._e.estado === 'distinto') && tr.ejec && tr.ejec.ts != null);
+  if (ejec.length < RITMO_MIN) {
+    return { n: ejec.length, suficiente: false, concentracion: null, spanPlan: null, spanReal: null, razon: null };
+  }
+  const dias = new Set(ejec.map(tr => diaBA(tr.ejec.ts)));
+  const concentracion = dias.size / ejec.length;
+
+  const desdes = T.map(tr => tr.desde).filter(x => x != null);
+  const hastas = T.map(tr => tr.hasta).filter(x => x != null);
+  const spanPlan = (desdes.length && hastas.length) ? diasEntre(Math.min(...desdes), Math.max(...hastas)) : null;
+  const tss = ejec.map(tr => tr.ejec.ts);
+  const spanReal = diasEntre(Math.min(...tss), Math.max(...tss));
+
+  /* La razón es lo que se lee: menor a 1 es haber comprimido el plan, mayor es haberlo
+     estirado. Los dos son desvío, y el motor no dice cuál es peor. */
+  const razon = (spanPlan > 0) ? spanReal / spanPlan : null;
+  return { n: ejec.length, suficiente: true, dias: dias.size, concentracion, spanPlan, spanReal, razon };
+}
+
+/* ===== Señal 3: reescrituras del objetivo =====
+   Editar el plan es un evento con fecha. No se juzga —cambiar de idea en frío es
+   legítimo y encima es la salida válida del estado 'apretado'— se cuenta y se fecha.
+
+   Lo que NO se puede hacer todavía: ligar la edición a un movimiento de mercado en las
+   48 h previas, que es lo que la volvería una señal de conducta y no un registro. Eso
+   necesita una serie externa y hoy no está. Se declara sin dato en vez de aproximarse
+   con otra cosa. El campo se llama `vinculoExterno` y no lo que describe, porque el
+   test 11 corta el build si aparece un identificador de mercado en este archivo y esa
+   red no lleva lista de excepciones: en cuanto una regla de seguridad admite la
+   primera, deja de ser una regla. */
+function reescrituras(plan, now) {
+  const eds = (plan && plan.ediciones) || [];
+  const T = anotarEstados(plan, now);
+  const primerEjec = T.filter(tr => tr.ejec && tr.ejec.ts != null).map(tr => tr.ejec.ts).sort((a, b) => a - b)[0];
+
+  /* Una edición antes de la primera compra es planificar. Después de haber empezado a
+     ejecutar es otra cosa, y esa es la que se cuenta aparte. */
+  const enVuelo = primerEjec == null ? [] : eds.filter(e => e.ts > primerEjec);
+  return {
+    total: eds.length,
+    enVuelo: enVuelo.length,
+    detalle: enVuelo.map(e => ({ ts: e.ts, dia: diaBA(e.ts), campo: e.campo, ticker: e.ticker || null, de: e.antes, a: e.despues })),
+    /* Queda explícitamente sin medir. Ver el comentario de arriba. */
+    vinculoExterno: null
+  };
+}
+
+/* ===== Señal 4: contradicción interna del plan =====
+   La app no opina sobre el plan. Señala cuando el plan choca con una regla que escribió
+   el mismo usuario. Cada regla ausente devuelve `sinDato`, nunca 'cumple'. */
+function contradicciones(plan) {
+  const obj = (plan && plan.objetivo) || [];
+  const R = (plan && plan.reglas) || {};
+  const out = [];
+
+  const total = obj.reduce((a, o) => a + (o.peso || 0), 0);
+
+  if (R.maxPos == null) out.push({ id: 'maxPos', estado: 'sinDato', txt: 'no declaraste un máximo por posición' });
+  else {
+    const rotas = obj.filter(o => o.peso > R.maxPos);
+    out.push(rotas.length
+      ? { id: 'maxPos', estado: 'choca', txt: `tu plan tiene ${rotas.length} posición(es) sobre el ${R.maxPos}% que fijaste`, detalle: rotas.map(o => ({ ticker: o.ticker, peso: o.peso })) }
+      : { id: 'maxPos', estado: 'ok', txt: `ninguna posición del plan pasa tu ${R.maxPos}%` });
+  }
+
+  if (R.maxSector == null) out.push({ id: 'maxSector', estado: 'sinDato', txt: 'no declaraste un máximo por sector' });
+  else if (obj.some(o => !o.sector)) out.push({ id: 'maxSector', estado: 'sinDato', txt: 'hay posiciones sin sector, así que no se puede sumar' });
+  else {
+    const porSec = {};
+    obj.forEach(o => { porSec[o.sector] = (porSec[o.sector] || 0) + (o.peso || 0); });
+    const rotas = Object.keys(porSec).filter(s => porSec[s] > R.maxSector);
+    out.push(rotas.length
+      ? { id: 'maxSector', estado: 'choca', txt: `${rotas.join(', ')} pasa(n) el ${R.maxSector}% por sector que fijaste`, detalle: rotas.map(s => ({ sector: s, peso: porSec[s] })) }
+      : { id: 'maxSector', estado: 'ok', txt: `ningún sector pasa tu ${R.maxSector}%` });
+  }
+
+  if (R.minPosiciones == null) out.push({ id: 'minPos', estado: 'sinDato', txt: 'no declaraste un mínimo de posiciones' });
+  else out.push(obj.length < R.minPosiciones
+    ? { id: 'minPos', estado: 'choca', txt: `el plan tiene ${obj.length} posiciones y pediste al menos ${R.minPosiciones}` }
+    : { id: 'minPos', estado: 'ok', txt: `${obj.length} posiciones, sobre el mínimo de ${R.minPosiciones}` });
+
+  /* Que los pesos no sumen 100 no es una regla suya: es que el plan está incompleto.
+     Se dice como falta de dato, no como incumplimiento. */
+  const suma = Math.abs(total - 100) < 0.5
+    ? { id: 'suma', estado: 'ok', txt: 'los pesos del plan suman 100%' }
+    : { id: 'suma', estado: 'sinDato', txt: `los pesos suman ${total.toFixed(1)}%, así que el plan todavía no está cerrado` };
+  out.push(suma);
+
+  return out;
+}
+
+/* ===== Trayectoria: a monto invertido, no a valor de mercado =====
+
+   Esto no es una limitación por no tener precios: es la definición correcta, y es la
+   corrección #4 de CLAUDE.md otra vez. El peso a valor de mercado se mueve solo con el
+   precio, así que medir la diversificación así es medir el resultado con otro nombre —
+   una posición puede cruzar tu máximo sin que hayas comprado nada.
+
+   A monto invertido, el peso se mueve únicamente cuando el usuario compra. Es acción
+   pura. Y como efecto lateral, el MVP no necesita ninguna fuente de precios.
+
+   La distancia es variación total: la mitad de la suma de las diferencias absolutas.
+   Vale 0 cuando la cartera es el plan y 1 cuando no comparten nada.
+
+   `base` es el total del plan, no lo ya invertido, y esa elección no es un detalle.
+   Normalizando sobre lo invertido, la primera compra de un plan de cuatro posiciones
+   *aleja* del objetivo —queda 100% en un papel que debía ser 25%— y el motor te marca
+   en rojo por empezar. Con el total del plan como denominador, lo que todavía no
+   compraste cuenta como efectivo y la primera compra acerca, que es lo que pasó.
+   El test 6 tiene el caso que destapó esto. */
+function distancia(montos, objetivo, base) {
+  const obj = {};
+  objetivo.forEach(o => { obj[o.ticker] = (o.peso || 0) / 100; });
+  const tks = new Set([...Object.keys(montos), ...Object.keys(obj)]);
+  let d = 0;
+  tks.forEach(tk => {
+    const w = base > 0 ? (montos[tk] || 0) / base : 0;
+    d += Math.abs(w - (obj[tk] || 0));
+  });
+  return d / 2;
+}
+
+function trayectoria(plan, now) {
+  const T = anotarEstados(plan, now);
+  const objetivo = (plan && plan.objetivo) || [];
+  if (!objetivo.length) return { hay: false, pasos: [], dist: null, avance: null };
+
+  const acum = {};
+  (plan.tenenciaInicial || []).forEach(t => { acum[t.ticker] = (acum[t.ticker] || 0) + t.monto; });
+
+  const ejec = T.filter(tr => (tr._e.estado === 'como' || tr._e.estado === 'distinto') && tr.ejec)
+    .sort((a, b) => (a.ejec.ts || 0) - (b.ejec.ts || 0));
+
+  const planTotal = T.reduce((a, tr) => a + (tr.monto || 0), 0) +
+    (plan.tenenciaInicial || []).reduce((a, t) => a + t.monto, 0);
+  const puesto = (plan.tenenciaInicial || []).reduce((a, t) => a + t.monto, 0) +
+    ejec.reduce((a, tr) => a + (tr.ejec.monto || tr.monto || 0), 0);
+
+  /* La base es fija a lo largo de toda la trayectoria, o los pasos no serían
+     comparables entre sí. Si terminó poniendo más de lo planeado, manda lo puesto:
+     los pesos nunca pueden sumar más de 1. */
+  const base = Math.max(planTotal, puesto);
+
+  let prev = distancia(acum, objetivo, base);
+  const pasos = [];
+  for (const tr of ejec) {
+    const tk = tr.ejec.ticker || tr.ticker;
+    acum[tk] = (acum[tk] || 0) + (tr.ejec.monto || tr.monto);
+    const d = distancia(acum, objetivo, base);
+    pasos.push({
+      id: tr.id, ticker: tk, ts: tr.ejec.ts, dia: diaBA(tr.ejec.ts),
+      antes: prev, despues: d,
+      /* El empate no es acercarse. Con distancia igual, `acerco` es false. */
+      acerco: d < prev - 1e-9
+    });
+    prev = d;
+  }
+
+  const invertido = Object.keys(acum).reduce((a, k) => a + acum[k], 0);
+
+  return {
+    hay: true,
+    pasos,
+    dist: prev,
+    /* Avance sobre el plan propio. No es rendimiento: es cuánto del plan está puesto. */
+    avance: planTotal > 0 ? invertido / planTotal : null,
+    invertido, planTotal
+  };
+}
+
+/* ===== Técnica de orden =====
+   Dos cosas separadas a propósito.
+
+   `adherencia` es tri-estado y sí se puntúa: ¿ejecutaste con el tipo que declaraste?
+   Eso es adherencia al plan y es acción.
+
+   `perfil` solo describe, sin racha ni color. La app no sostiene que el límite sea
+   mejor que el mercado —eso sería opinar sobre el contenido del plan— así que cuenta
+   y se calla. Lo que sí separa es el límite que no se llenó, porque confundirlo con
+   no haber querido operar mezcla técnica con voluntad. */
+function tecnica(plan, now) {
+  const T = anotarEstados(plan, now);
+  let cumple = 0, falla = 0, sinLlenar = 0, limite = 0, mercado = 0;
+  const cambios = [];
+
+  for (const tr of T) {
+    const e = tr._e;
+    if (e.estado === 'noEjecutado' && e.motivo === 'la orden no se llenó') { sinLlenar++; continue; }
+    if (e.estado !== 'como' && e.estado !== 'distinto') continue;
+    const dec = tr.tipo, hecho = (tr.ejec && tr.ejec.tipo) || null;
+    if (!dec || !hecho) continue;
+    if (hecho === 'limite') limite++; else if (hecho === 'mercado') mercado++;
+    if (dec === hecho) cumple++;
+    else { falla++; cambios.push({ id: tr.id, ticker: tr.ticker, de: dec, a: hecho, ts: tr.ejec.ts }); }
+  }
+  const n = cumple + falla;
+  return {
+    adherencia: { cumple, falla, n, pct: n ? cumple / n : null, suficiente: n >= MUESTRA_MIN, cambios },
+    perfil: { limite, mercado, sinLlenar }
+  };
+}
+
+/* ===== Hábitos sobre tramos =====
+   Misma forma que `habitos` en engine.js, con la misma regla de oro: tres valores.
+   `null` atraviesa la racha sin cortarla y sin hacerla crecer, y sale del denominador.
+   Un tramo pendiente o sin dato no es una falla: es un tramo que nadie pudo juzgar. */
+function habitosPlan(plan, now) {
+  const T = anotarEstados(plan, now);
+  const tray = trayectoria(plan, now);
+  const acercoPorId = {};
+  tray.pasos.forEach(p => { acercoPorId[p.id] = p.acerco; });
+
+  const test = {
+    fiel: tr => {
+      const e = tr._e.estado;
+      if (e === 'pendiente' || e === 'sinDato') return null;
+      if (e === 'como') return true;
+      return false;   // 'distinto' y 'noEjecutado' son no haber hecho lo que dijiste
+    },
+    tecnica: tr => {
+      const e = tr._e.estado;
+      if (e !== 'como' && e !== 'distinto') return null;
+      const dec = tr.tipo, hecho = tr.ejec && tr.ejec.tipo;
+      if (!dec || !hecho) return null;
+      return dec === hecho;
+    },
+    rumbo: tr => {
+      if (!(tr.id in acercoPorId)) return null;
+      return acercoPorId[tr.id];
+    }
+  };
+
+  const def = [
+    ['fiel', 'Tramo como estaba', 'ejecutar el tramo con el ticker, el monto y la ventana que declaraste'],
+    ['tecnica', 'Tipo de orden sostenido', 'mandar la orden del tipo que dijiste que ibas a mandar'],
+    ['rumbo', 'Cada compra acerca', 'que el tramo te deje más cerca de tu propia distribución objetivo']
+  ];
+
+  /* Orden cronológico por cuándo se resolvió el tramo, no por cuándo se declaró.
+     Es la misma corrección que `descartes.md` anota para la curva de PnL: la racha se
+     cuenta en el orden en que las cosas se cerraron. */
+  const orden = T.slice().sort((a, b) => {
+    const ka = (a.ejec && a.ejec.ts) || a.hasta || 0;
+    const kb = (b.ejec && b.ejec.ts) || b.hasta || 0;
+    return ka - kb;
+  });
+
+  return def.map(([id, nombre, accion]) => {
+    const ok = test[id];
+    let racha = 0;
+    for (let i = orden.length - 1; i >= 0; i--) {
+      const v = ok(orden[i]);
+      if (v === false) break;
+      if (v === true) racha++;
+    }
+    let mejor = 0, c = 0;
+    for (const tr of orden) {
+      const v = ok(tr);
+      if (v === false) c = 0; else if (v === true) c++;
+      mejor = Math.max(mejor, c);
+    }
+    const vals = orden.map(ok);
+    const cumplidas = vals.filter(v => v === true).length;
+    const fallidas = vals.filter(v => v === false).length;
+    const sinDato = vals.filter(v => v == null).length;
+    const juzgadas = cumplidas + fallidas;
+    return {
+      id, nombre, accion, racha, mejor,
+      cumplidas, deN: juzgadas, sinDato, deTotal: orden.length,
+      pct: juzgadas ? cumplidas / juzgadas : null,
+      suficiente: juzgadas >= MUESTRA_MIN
+    };
+  });
+}
+
+/* ===== Las cuatro caras de Taladrín =====
+
+   El estado se mapea al tablero del plan. Nunca al patrimonio, nunca al color de una
+   posición.
+
+   Ningún umbral inventado: 'alerta' y 'apretado' se disparan con la ventana que declaró
+   el usuario, no con un número que eligió la app.
+
+   Y la salida de 'apretado' es doble: ejecutar el tramo **o editar el plan**. Eso es lo
+   que impide que el estado sea coercitivo. Cambiar de idea en frío es una salida válida,
+   igual que descansar lo era en el modo perps. Si la única forma de apagarlo fuera
+   comprar, sería un malestar que se alivia operando, que es el principio 6. */
+function cara(plan, now) {
+  const T = anotarEstados(plan, now);
+  const juzgados = T.filter(tr => tr._e.estado !== 'pendiente' && tr._e.estado !== 'sinDato');
+
+  if ((!T.length && !((plan && plan.niveles) || []).length) || !(plan.objetivo || []).length) {
+    return { cara: 'nose', motivo: 'todavía no hay plan cargado', vencidos: [], salidas: [] };
+  }
+  const hayNiveles = anotarNiveles(plan, now).some(n => n._e.estado !== 'sinDato' && n._e.estado !== 'vigente');
+  if (!juzgados.length && !hayNiveles) {
+    return { cara: 'nose', motivo: 'ningún tramo se resolvió todavía', vencidos: [], salidas: [] };
+  }
+
+  const vencidos = T.filter(tr => tr._e.estado === 'noEjecutado' && tr._e.motivo === 'venció la ventana')
+    .map(tr => ({ id: tr.id, ticker: tr.ticker, dias: diasEntre(tr.hasta, now) }))
+    .sort((a, b) => b.dias - a.dias);
+
+  const N = anotarNiveles(plan, now);
+  const nivVencidos = N.filter(n => n._e.estado === 'noEjecutado')
+    .map(n => ({ id: n.id, ticker: n.ticker, dias: n._e.disparo ? diasEntre(Date.parse(n._e.disparo + 'T15:00:00Z'), now) : null, nivel: true }));
+  if (!vencidos.length && nivVencidos.length) {
+    return {
+      cara: 'apretado',
+      motivo: `${nivVencidos.length} regla(s) de nivel cruzada(s) sin ejecutar`,
+      vencidos: nivVencidos,
+      salidas: ['ejecutar la salida', 'editar el plan']
+    };
+  }
+
+  if (vencidos.length) {
+    return {
+      cara: 'apretado',
+      motivo: `${vencidos.length} tramo(s) vencido(s) sin ejecutar, el más viejo hace ${vencidos[0].dias} día(s)`,
+      vencidos,
+      salidas: ['ejecutar el tramo', 'editar el plan']
+    };
+  }
+
+  const porVencer = T.filter(tr => tr._e.estado === 'pendiente' && tr.hasta != null && diasEntre(now, tr.hasta) <= 1)
+    .map(tr => ({ id: tr.id, ticker: tr.ticker, dias: diasEntre(now, tr.hasta) }));
+  const nivPend = N.filter(n => n._e.estado === 'pendiente').map(n => ({ id: n.id, ticker: n.ticker, disparo: n._e.disparo }));
+  if (!porVencer.length && nivPend.length) {
+    return {
+      cara: 'alerta',
+      motivo: `${nivPend.length} regla(s) de nivel cruzada(s), ventana abierta`,
+      vencidos: [], porVencer: nivPend,
+      salidas: ['ejecutar la salida', 'editar el plan']
+    };
+  }
+  if (porVencer.length) {
+    return {
+      cara: 'alerta',
+      motivo: `${porVencer.length} tramo(s) con la ventana cerrándose`,
+      vencidos: [], porVencer,
+      salidas: ['ejecutar el tramo', 'editar el plan']
+    };
+  }
+
+  return { cara: 'reposo', motivo: 'ningún tramo vencido ni por vencer', vencidos: [], salidas: [] };
+}
+
+/* ===== La voz =====
+   Las reglas de engine.js, sin cambios: no habla sin un número, habla poco, y callarse
+   es una respuesta válida y frecuente. Devuelve `null` seguido, y eso está bien. */
+function voz(plan, now) {
+  const c = cara(plan, now);
+  const hab = habitosPlan(plan, now);
+  const tec = tecnica(plan, now);
+  const rit = desvioRitmo(plan, now);
+  const cont = desvioContenido(plan, now);
+
+  if (c.cara === 'apretado' && c.vencidos[0] && c.vencidos[0].nivel) {
+    const v = c.vencidos[0];
+    return `La regla de nivel de ${v.ticker} se cruzó hace ${v.dias} día(s) y no se ejecutó. Ejecutarla y reescribirla cuentan igual; dejarla ahí es lo único que no.`;
+  }
+  if (c.cara === 'apretado') {
+    const v = c.vencidos[0];
+    return `El tramo de ${v.ticker} venció hace ${v.dias} día(s). Ejecutarlo y borrarlo cuentan igual; dejarlo ahí es lo único que no.`;
+  }
+
+  /* Todo lo que sigue exige muestra. Antes del piso el motor se calla, que es lo mismo
+     que hacen 4.2 y 4.3 en el modo perps. */
+  if (tec.adherencia.suficiente && tec.adherencia.pct != null && tec.adherencia.pct < 0.6) {
+    return `Declaraste un tipo de orden y mandaste otro en ${tec.adherencia.falla} de ${tec.adherencia.n}. No es que el límite sea mejor: es que dijiste una cosa y hiciste otra.`;
+  }
+  if (rit.suficiente && rit.razon != null && rit.razon < 0.34) {
+    return `Tu plan se estiraba ${rit.spanPlan} días y lo ejecutaste en ${rit.spanReal}. Entrar más rápido no está mal por definición, pero no es lo que habías escrito.`;
+  }
+  if (cont.hay && cont.pct != null && cont.n >= MUESTRA_MIN && cont.pct > 0) {
+    return `${cont.fuera.length} de ${cont.n} compras fueron a papeles que no estaban en tu plan.`;
+  }
+
+  const fiel = hab.find(h => h.id === 'fiel');
+  if (fiel && fiel.racha >= 3) {
+    return `${fiel.racha} tramos seguidos como los habías escrito.`;
+  }
+  return null;
+}
+
+/* ===== Gating de muestra =====
+   Qué tiene derecho a decir el motor con lo que hay. Devuelve la lista de piezas que
+   todavía no llegaron al piso, para que la vista las muestre calladas en vez de
+   mostrarlas con un número que no significa nada. */
+function muestraPlan(plan, now) {
+  const T = anotarEstados(plan, now);
+  const juzgados = T.filter(tr => tr._e.estado !== 'pendiente' && tr._e.estado !== 'sinDato').length;
+  const piezas = [
+    { id: 'habitos', n: juzgados, min: MUESTRA_MIN },
+    { id: 'ritmo', n: T.filter(tr => tr.ejec && tr.ejec.ts != null).length, min: RITMO_MIN },
+    { id: 'tecnica', n: tecnica(plan, now).adherencia.n, min: MUESTRA_MIN }
+  ];
+  return {
+    juzgados,
+    listas: piezas.filter(p => p.n >= p.min).map(p => p.id),
+    faltan: piezas.filter(p => p.n < p.min).map(p => ({ id: p.id, n: p.n, min: p.min }))
+  };
+}
+
+/* ===== Reglas de nivel: salidas que él declaró en frío =====
+
+   `DECISIÓN` del 7/10/2026, ver docs/merval.md § Reglas de nivel. Hasta acá el motor no
+   miraba ningún valor de mercado. Ahora mira uno, y solo para una pregunta: **¿el cierre
+   cruzó el nivel que VOS escribiste, y cuando cruzó, hiciste lo que dijiste?**
+
+   Lo que sigue prohibido, y el cortafuegos del test 11 lo sigue cortando: resultado
+   (pnl, ganancia, retorno), comparación contra el mercado (benchmark) y valuación de la
+   cartera. Un nivel declarado es una regla, igual que `maxPos`. Lo que se mide es la
+   adherencia a la regla, nunca si la regla era buena.
+
+   Los cierres NO los busca el motor: vienen en `plan.cierres`, cargados desde afuera
+   (la tarea programada o el tablero de BYMA). Sin cierres para el ticker, `sinDato`.
+   El motor no tiene red y no la va a tener: § 1.
+
+   Cinco estados más uno:
+   - `vigente`   ningún cierre cruzó todavía. No se juzga, sale del denominador.
+   - `pendiente` cruzó y la ventana para ejecutar sigue abierta.
+   - `como`      ejecutó dentro de la ventana la fracción declarada.
+   - `distinto`  ejecutó, pero tarde, otra fracción, o ANTES de que cruzara.
+   - `noEjecutado` cruzó, venció la ventana y no hizo nada.
+   - `sinDato`   regla incompleta o sin cierres para ese ticker. */
+
+const TOL_FRACCION = 0.10;   // mismo criterio que TOL_MONTO: nominales enteros
+
+function sentidoNivel(n) {
+  if (n.sentido === 'abajo' || n.sentido === 'arriba') return n.sentido;
+  if (n.tipo === 'invalidacion') return 'abajo';
+  if (n.tipo === 'objetivo') return 'arriba';
+  return null;
+}
+
+function estadoNivel(n, cierres, now) {
+  const sentido = n ? sentidoNivel(n) : null;
+  if (!n || !n.ticker || !(n.nivel > 0) || !sentido) {
+    return { estado: 'sinDato', cambios: [], motivo: 'regla incompleta', disparo: null };
+  }
+  const serie = ((cierres || {})[n.ticker] || [])
+    .filter(x => x && x.d && x.c > 0)
+    .slice().sort((a, b) => a.d < b.d ? -1 : 1);
+  if (!serie.length) return { estado: 'sinDato', cambios: [], motivo: 'sin cierres cargados para ' + n.ticker, disparo: null };
+
+  const desde = n.desde != null ? diaBA(n.desde) : null;
+  const vale = serie.filter(x => desde == null || x.d >= desde);
+  const cruza = x => sentido === 'abajo' ? x.c < n.nivel : x.c >= n.nivel;
+  const i = vale.findIndex(cruza);
+  const e = n.ejec;
+  const plazo = n.plazo > 0 ? Math.round(n.plazo) : 1;   // ruedas después del cierre que cruzó
+
+  if (i < 0) {
+    /* Vendió sin que cruzara: hizo otra cosa que lo escrito. No es falla de datos. */
+    if (e && e.ts != null) return { estado: 'distinto', cambios: [{ campo: 'disparo', de: 'sin cruce', a: diaBA(e.ts) }], motivo: 'ejecutó antes de que cruzara', disparo: null };
+    return { estado: 'vigente', cambios: [], motivo: null, disparo: null };
+  }
+
+  const disparo = vale[i].d;
+  const limite = vale[i + plazo] ? vale[i + plazo].d : null;   // null: todavía no hubo esas ruedas
+
+  if (!e || e.ts == null) {
+    if (limite == null) return { estado: 'pendiente', cambios: [], motivo: 'cruzó el ' + disparo, disparo };
+    return { estado: 'noEjecutado', cambios: [], motivo: 'cruzó el ' + disparo + ' y venció la ventana', disparo };
+  }
+
+  const dia = diaBA(e.ts);
+  const cambios = [];
+  if (dia < disparo) cambios.push({ campo: 'disparo', de: disparo, a: dia });
+  if (limite != null && dia > limite) cambios.push({ campo: 'ventana', de: limite, a: dia });
+  if (n.fraccion > 0 && e.fraccion > 0 && Math.abs(e.fraccion - n.fraccion) > TOL_FRACCION) {
+    cambios.push({ campo: 'fraccion', de: n.fraccion, a: e.fraccion });
+  }
+  return { estado: cambios.length ? 'distinto' : 'como', cambios, motivo: null, disparo };
+}
+
+function anotarNiveles(plan, now) {
+  const N = (plan && plan.niveles) || [];
+  N.forEach(n => { n._e = estadoNivel(n, plan.cierres, now); });
+  return N;
+}
+
+function niveles(plan, now) {
+  const N = anotarNiveles(plan, now);
+  const cuenta = { vigente: 0, pendiente: 0, como: 0, distinto: 0, noEjecutado: 0, sinDato: 0 };
+  N.forEach(n => { cuenta[n._e.estado]++; });
+  const juzgados = cuenta.como + cuenta.distinto + cuenta.noEjecutado;
+  return {
+    n: N.length, cuenta, juzgados,
+    suficiente: juzgados >= MUESTRA_MIN,
+    pct: juzgados ? cuenta.como / juzgados : null,
+    lista: N.map(n => ({ id: n.id, ticker: n.ticker, tipo: n.tipo, nivel: n.nivel, estado: n._e.estado, motivo: n._e.motivo, disparo: n._e.disparo }))
+  };
+}
+
+/* ===== La entrada: el taller =====
+
+   Decisión del 5/8: la IA se usa **afuera** de la app. El usuario le da la captura a un
+   asistente, recibe este JSON y lo carga. Nada de esto sale del navegador, y por eso
+   la restricción § 1 —"todo se procesa en el navegador"— sigue entera.
+
+   `desdePlan` COPIA el objeto y le pone defaults encima. No lista campos a mano, y eso
+   no es estilo: es el bug que CLAUDE.md documenta para `desdeArchivo()` en el modo
+   perps. El literal que había allá se comía `portfolio`, `orders` y `dexes` sin decir
+   nada. Si mañana el esquema gana un campo, acá pasa solo. Volver a un literal de
+   campos reabre el mismo agujero. */
+
+const PLAN_DEFAULTS = {
+  creado: null, objetivo: [], reglas: {}, tramos: [], ediciones: [], tenenciaInicial: [], niveles: [], cierres: {}
+};
+
+/* Un número puede venir como 100000, "100000" o "100.000,50", que es lo que escribe
+   cualquier pantalla argentina. Lo que NO hace es adivinar: si no se puede leer,
+   devuelve null y `revisar` lo marca. Un 0 silencioso sería inventar la variable. */
+function num(v) {
+  if (typeof v === 'number') return isFinite(v) ? v : null;
+  if (typeof v !== 'string') return null;
+  const s = v.replace(/[^\d.,-]/g, '').replace(/\./g, '').replace(',', '.');
+  const n = parseFloat(s);
+  return isFinite(n) ? n : null;
+}
+
+function desdePlan(raw) {
+  const plan = Object.assign({}, PLAN_DEFAULTS, raw || {});
+
+  /* Solo se tocan los campos que el motor sabe recorrer. Todo lo demás viajó en el
+     `Object.assign` de arriba y sigue ahí intacto. */
+  plan.objetivo = (Array.isArray(plan.objetivo) ? plan.objetivo : []).map(o =>
+    Object.assign({}, o, { ticker: (o.ticker || '').toUpperCase().trim() || null, peso: num(o.peso) }));
+
+  plan.tenenciaInicial = (Array.isArray(plan.tenenciaInicial) ? plan.tenenciaInicial : []).map(t =>
+    Object.assign({}, t, { ticker: (t.ticker || '').toUpperCase().trim() || null, monto: num(t.monto) }))
+    .filter(t => t.ticker && t.monto > 0);
+
+  plan.tramos = (Array.isArray(plan.tramos) ? plan.tramos : []).map((tr, i) =>
+    Object.assign({}, tr, {
+      /* El asistente no inventa ids. Se generan por posición y son estables mientras
+         no se reordene la lista, que es lo que necesita `trayectoria` para casar pasos. */
+      id: tr.id != null ? tr.id : 't' + (i + 1),
+      ticker: (tr.ticker || '').toUpperCase().trim() || null,
+      monto: num(tr.monto),
+      tipo: tr.tipo === 'mercado' ? 'mercado' : tr.tipo === 'limite' ? 'limite' : null,
+      ejec: tr.ejec ? Object.assign({}, tr.ejec, { monto: num(tr.ejec.monto), lleno: tr.ejec.lleno !== false }) : null
+    }));
+
+  plan.niveles = (Array.isArray(plan.niveles) ? plan.niveles : []).map((n, i) =>
+    Object.assign({}, n, {
+      id: n.id != null ? n.id : 'n' + (i + 1),
+      ticker: (n.ticker || '').toUpperCase().trim() || null,
+      nivel: num(n.nivel),
+      fraccion: n.fraccion == null ? null : num(n.fraccion),
+      ejec: n.ejec ? Object.assign({}, n.ejec, { fraccion: n.ejec.fraccion == null ? null : num(n.ejec.fraccion) }) : null
+    }));
+  const C = plan.cierres && typeof plan.cierres === 'object' ? plan.cierres : {};
+  plan.cierres = {};
+  Object.keys(C).forEach(k => {
+    plan.cierres[k.toUpperCase().trim()] = (Array.isArray(C[k]) ? C[k] : []).map(x => ({ d: x && x.d, c: x ? num(x.c) : null }));
+  });
+
+  plan.ediciones = Array.isArray(plan.ediciones) ? plan.ediciones : [];
+  plan.reglas = Object.assign({}, plan.reglas || {});
+
+  return { plan, revision: revisar(plan) };
+}
+
+/* ===== La revisión: nada entra sin que lo mires =====
+
+   Una extracción que lee 18,8% como 1,88% rompe el tablero entero en silencio, que es
+   el peor modo de falla de este proyecto. Por eso lo que sale del taller no es un plan:
+   es un plan **más un reporte de qué habría que confirmar**. Quien monte la vista tiene
+   que mostrarlo antes de guardar.
+
+   Tres estados, los mismos de siempre: 'ok' pasa, 'confirmar' se leyó pero podría estar
+   mal, 'falta' no se puede usar. */
+function revisar(plan) {
+  const out = [];
+  const O = plan.objetivo || [], T = plan.tramos || [];
+
+  if (!O.length) out.push({ campo: 'objetivo', estado: 'falta', txt: 'no hay ninguna posición objetivo' });
+
+  O.forEach((o, i) => {
+    if (!o.ticker) out.push({ campo: `objetivo[${i}].ticker`, estado: 'falta', txt: 'posición sin ticker' });
+    if (o.peso == null) out.push({ campo: `objetivo[${i}].peso`, estado: 'falta', txt: `${o.ticker || '?'} sin peso legible` });
+    else out.push({ campo: `objetivo[${i}]`, estado: 'confirmar', txt: `${o.ticker}: ${o.peso}%`, valor: o.peso });
+    if (!o.sector) out.push({ campo: `objetivo[${i}].sector`, estado: 'confirmar', txt: `${o.ticker || '?'} sin sector: la regla por sector va a quedar sin dato` });
+  });
+
+  /* Los pesos no se normalizan. Si suman 97, suman 97 y se dice: reescalarlos sería
+     inventar la intención del usuario a partir de un error de lectura. */
+  const suma = O.reduce((a, o) => a + (o.peso || 0), 0);
+  if (O.length && Math.abs(suma - 100) >= 0.5) {
+    out.push({ campo: 'objetivo.suma', estado: 'confirmar', valor: suma,
+      txt: `los pesos suman ${suma.toFixed(1)}% y no 100%. No se reescalan solos` });
+  }
+
+  T.forEach((tr, i) => {
+    if (!tr.ticker) out.push({ campo: `tramos[${i}].ticker`, estado: 'falta', txt: 'tramo sin ticker' });
+    if (!(tr.monto > 0)) out.push({ campo: `tramos[${i}].monto`, estado: 'falta', txt: `${tr.ticker || '?'} sin monto legible` });
+    if (tr.hasta == null) out.push({ campo: `tramos[${i}].hasta`, estado: 'falta', txt: `${tr.ticker || '?'} sin ventana: va a quedar en sinDato para siempre` });
+    if (!tr.tipo) out.push({ campo: `tramos[${i}].tipo`, estado: 'confirmar', txt: `${tr.ticker || '?'} sin tipo de orden: no se puede medir adherencia técnica` });
+  });
+
+  (plan.niveles || []).forEach((n, i) => {
+    if (!n.ticker) out.push({ campo: `niveles[${i}].ticker`, estado: 'falta', txt: 'regla de nivel sin ticker' });
+    if (!(n.nivel > 0)) out.push({ campo: `niveles[${i}].nivel`, estado: 'falta', txt: `${n.ticker || '?'} sin nivel legible` });
+    if (!sentidoNivel(n)) out.push({ campo: `niveles[${i}].tipo`, estado: 'falta', txt: `${n.ticker || '?'}: decí si es invalidación u objetivo` });
+    if (!n.moneda) out.push({ campo: `niveles[${i}].moneda`, estado: 'confirmar', txt: `${n.ticker || '?'} ${n.nivel}: ¿en qué moneda? Tiene que ser la misma que los cierres` });
+    if (n.ticker && !((plan.cierres || {})[n.ticker] || []).length) {
+      out.push({ campo: `niveles[${i}].cierres`, estado: 'confirmar', txt: `${n.ticker} no tiene cierres cargados: la regla queda en sinDato hasta que lleguen` });
+    }
+  });
+
+  const tksObj = new Set(O.map(o => o.ticker));
+  T.forEach((tr, i) => {
+    if (tr.ticker && tksObj.size && !tksObj.has(tr.ticker)) {
+      out.push({ campo: `tramos[${i}].ticker`, estado: 'confirmar',
+        txt: `${tr.ticker} no está en tu objetivo. Si es a propósito queda como desvío de contenido` });
+    }
+  });
+
+  return {
+    items: out,
+    falta: out.filter(x => x.estado === 'falta').length,
+    confirmar: out.filter(x => x.estado === 'confirmar').length,
+    /* Usable no es correcto. Dice que el motor puede correr, no que lo leído esté bien. */
+    usable: out.filter(x => x.estado === 'falta').length === 0
+  };
+}
+
+/* ===== Resumen para la vista ===== */
+function resumen(plan, now) {
+  now = now == null ? Date.now() : now;
+  anotarEstados(plan, now);
+  const T = (plan && plan.tramos) || [];
+  const cuenta = { como: 0, distinto: 0, noEjecutado: 0, pendiente: 0, sinDato: 0 };
+  T.forEach(tr => { cuenta[tr._e.estado]++; });
+  return {
+    now,
+    cuenta,
+    cara: cara(plan, now),
+    habitos: habitosPlan(plan, now),
+    tecnica: tecnica(plan, now),
+    trayectoria: trayectoria(plan, now),
+    senales: {
+      contenido: desvioContenido(plan, now),
+      ritmo: desvioRitmo(plan, now),
+      reescrituras: reescrituras(plan, now),
+      contradicciones: contradicciones(plan)
+    },
+    niveles: niveles(plan, now),
+    muestra: muestraPlan(plan, now),
+    voz: voz(plan, now)
+  };
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    diaBA, diasEntre, estadoTramo, anotarEstados,
+    desvioContenido, desvioRitmo, reescrituras, contradicciones,
+    distancia, trayectoria, tecnica, habitosPlan, cara, voz, muestraPlan, resumen,
+    desdePlan, revisar, num, PLAN_DEFAULTS,
+    estadoNivel, niveles, TOL_FRACCION,
+    TOL_MONTO, MUESTRA_MIN, RITMO_MIN
+  };
+}
+
+
+/* ===================== Taladrín ===================== */
+const LN = '#0f1714';
+const ceja = (d, w) => `<path d="${d}" fill="none" stroke="${LN}" stroke-width="${w || 3.8}" stroke-linecap="round"/>`;
+const boca = (d, w) => `<path d="${d}" fill="none" stroke="${LN}" stroke-width="${w || 2.2}" stroke-linecap="round" stroke-linejoin="round"/>`;
+const ojo = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r || 2.1}" fill="${LN}"/>`;
+const ojoCerrado = (x, y) => `<path d="M${x - 2.8} ${y + 1} q2.8 2.2 5.6 0" fill="none"
+  stroke="${LN}" stroke-width="1.8" stroke-linecap="round"/>`;
+
+/* Cuatro caras y ni una más. El modo perps tiene ocho porque tiene ocho estados; acá
+   hay cuatro, y la cuarta —'nose'— es la del `null`, que al principio va a ser la más
+   frecuente. Una app que no puede dibujar "no sé" termina dibujando otra cosa. */
+const CARAS = {
+  reposo:   ceja('M17 12 h11') + ceja('M33 12 h11') +
+    `<g class="ojos">${ojo(23, 19)}${ojo(38, 19)}</g>` + boca('M27 27.5 h8'),
+  alerta:   ceja('M17 10.5 h11', 3.4) + ceja('M33 10.5 h11', 3.4) +
+    `<g class="ojos">${ojo(23, 19, 2.5)}${ojo(38, 19, 2.5)}</g>` + boca('M28 27 h6'),
+  apretado: ceja('M16 6.5 l12 4', 4) + ceja('M45 6.5 l-12 4', 4) +
+    `<g class="ojos">${ojo(23, 20.5, 2.8)}${ojo(38, 20.5, 2.8)}</g>` + boca('M27 29 q4 -3 8 0'),
+  nose:     ceja('M17 12 h11', 3.4) + ceja('M33 12 h11', 3.4) +
+    `<g class="ojos">${ojoCerrado(23, 19)}${ojoCerrado(38, 19)}</g>` + boca('M28 27 h6')
+};
+
+/* Una sola paleta. La roja de `PALETA.tilt` es del otro modo y traerla acá haría que
+   dos productos distintos usen el mismo rojo para cosas distintas. El estado se dice
+   con el rótulo, no repintando al personaje. */
+const C = { cuerpo:'#54b391', sombra:'#358068', grip:'#2f4a41', gripS:'#1e332c',
+            metal:'#8fbfae', mecha:'#e9f6f1' };
+
+function drillSvg(cara) {
+  return `<svg viewBox="-4 -4 88 73" xmlns="http://www.w3.org/2000/svg" role="img"
+    aria-label="Taladrín, estado ${cara}" overflow="visible">
+  <g class="flota">
+  <path d="M21 31 L18 55 q-.6 4 4 4 h16 q4.6 0 4-4 L38 31z" fill="${C.grip}" stroke="${LN}" stroke-width="2"/>
+  <path d="M30 31 L30 59 h8 q4.6 0 4-4 L38 31z" fill="${C.gripS}" stroke="none"/>
+  <rect x="15" y="53" width="30" height="10" rx="3.5" fill="${C.gripS}" stroke="${LN}" stroke-width="2"/>
+  <path d="M22 38 h14 M21 43 h14 M21 48 h14" stroke="${C.gripS}" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+  <rect x="12" y="3" width="38" height="29" rx="12" fill="${C.cuerpo}" stroke="${LN}" stroke-width="2.2"/>
+  <path d="M38 3 h0 a12 12 0 0 1 0 29 h-3 a12 12 0 0 0 0-29z" fill="${C.sombra}"/>
+  <path d="M50 10 l7 2.5 v10 L50 25z" fill="${C.metal}" stroke="${LN}" stroke-width="1.6"/>
+  <path class="bit" d="M57 17.5 H71" stroke="${C.mecha}" stroke-width="3.6" stroke-linecap="butt"/>
+  <path d="M60 15 l3 5 M65 15 l3 5" stroke="${C.metal}" stroke-width="1.6" stroke-linecap="round" fill="none"/>
+  <path d="M71 14.6 L77 17.5 L71 20.4z" fill="${C.mecha}" stroke="${LN}" stroke-width="1.2"/>
+  <g class="face">${CARAS[cara] || CARAS.nose}</g>
+  </g>
+</svg>`;
+}
+
+/* ===================== Estado ===================== */
+/* `DIA` no se redeclara acá: ya viene del motor, y el build corta si se pisa —
+   que es exactamente lo que hizo la primera vez que se armó esta página. */
+const CLAVE = 'talastrat.merval.v1';
+const $ = id => document.getElementById(id);
+
+let PLAN = null;
+let REVISION = null;
+
+function planVacio() {
+  return { creado: Date.now(), objetivo: [], reglas: {}, tramos: [], ediciones: [], tenenciaInicial: [] };
+}
+
+function cargar() {
+  let raw = null;
+  try { raw = JSON.parse(localStorage.getItem(CLAVE) || 'null'); } catch (e) { raw = null; }
+  const r = desdePlan(raw || planVacio());
+  PLAN = r.plan; REVISION = r.revision;
+}
+
+function guardar() {
+  PLAN.tramos.forEach((tr, i) => { if (tr.id == null) tr.id = 't' + (i + 1); });
+  try { localStorage.setItem(CLAVE, JSON.stringify(PLAN)); } catch (e) { /* modo privado */ }
+  REVISION = revisar(PLAN);
+  pintar();
+}
+
+/* Editar el objetivo es un evento con fecha, y se guarda. Es la señal 3: no se juzga
+   —cambiar de idea en frío es legítimo, y es la salida válida del estado apretado— pero
+   una edición después de haber empezado a ejecutar no es lo mismo que planificar. */
+function anotarEdicion(campo, ticker, antes, despues) {
+  if (antes === despues) return;
+  PLAN.ediciones.push({ ts: Date.now(), campo, ticker: ticker || null, antes, despues });
+}
+
+/* ===================== Formato ===================== */
+const fmt = n => n == null ? '—' : n.toLocaleString('es-AR', { maximumFractionDigits: 2 });
+const pct = n => n == null ? '—' : (n * 100).toFixed(0) + '%';
+const fecha = ts => ts == null ? '—' : new Date(ts).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
+const aFecha = ts => ts == null ? '' : new Date(ts - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
+const deFecha = s => s ? new Date(s + 'T12:00:00').getTime() : null;
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+const PILL = { como: ['p-ok', 'como estaba'], distinto: ['p-warn', 'distinto'],
+  noEjecutado: ['p-no', 'no ejecutado'], pendiente: ['p-pend', 'pendiente'], sinDato: ['p-sd', 'sin dato'] };
+
+/* ===================== Pintado ===================== */
+function pintar() {
+  const now = Date.now();
+  const R = resumen(PLAN, now);
+
+  pintarTaladrin(R);
+  pintarObjetivo();
+  pintarReglas(R);
+  pintarTramos(R, now);
+  pintarHabitos(R);
+  pintarTrayectoria(R);
+  pintarTecnica(R);
+  pintarSenales(R);
+  pintarRevision();
+}
+
+function pintarTaladrin(R) {
+  const c = R.cara;
+  $('tal').className = 'tal ' + c.cara;
+  $('drill').innerHTML = drillSvg(c.cara);
+  $('est').textContent = { reposo: 'EN REPOSO', alerta: 'ATENTO', apretado: 'APRETADO', nose: 'NO SÉ' }[c.cara];
+  /* `voz` devuelve null seguido y eso está bien: callarse es una respuesta válida.
+     Cuando no hay nada con un número al lado, se muestra el motivo del estado y nada más. */
+  $('dice').textContent = R.voz || c.motivo || '';
+  $('salidas').textContent = c.salidas && c.salidas.length
+    ? 'Salidas: ' + c.salidas.join(' · ') : '';
+}
+
+function pintarObjetivo() {
+  const O = PLAN.objetivo;
+  $('tObj').innerHTML = O.length ? O.map((o, i) => `<tr>
+    <td><input data-o="${i}" data-k="ticker" value="${esc(o.ticker)}" placeholder="GGAL"></td>
+    <td><input data-o="${i}" data-k="peso" type="number" min="0" max="100" value="${o.peso == null ? '' : o.peso}"></td>
+    <td><input data-o="${i}" data-k="sector" value="${esc(o.sector)}" placeholder="sin declarar"></td>
+    <td><button class="del mini" data-delo="${i}">×</button></td></tr>`).join('')
+    : '<tr><td colspan="4" class="mut">Escribí acá la cartera que querés alcanzar. Esta parte no se puede importar de una captura: declararla es el ejercicio.</td></tr>';
+
+  const suma = O.reduce((a, o) => a + (o.peso || 0), 0);
+  $('sumaObj').innerHTML = O.length
+    ? `Suman <b class="${Math.abs(suma - 100) < 0.5 ? 'up' : 'warn'}">${suma.toFixed(1)}%</b>. No se reescalan solos.`
+    : '';
+}
+
+function pintarReglas(R) {
+  const cs = R.senales.contradicciones;
+  $('contr').innerHTML = cs.map(c => {
+    const cl = c.estado === 'choca' ? 'p-no' : c.estado === 'ok' ? 'p-ok' : 'p-sd';
+    const et = c.estado === 'choca' ? 'choca' : c.estado === 'ok' ? 'ok' : 'sin dato';
+    return `<div class="row" style="gap:8px;margin:5px 0"><span class="pill ${cl}">${et}</span>
+      <span class="sub">${esc(c.txt)}</span></div>`;
+  }).join('');
+}
+
+function pintarTramos(R, now) {
+  const T = PLAN.tramos;
+  if (!T.length) {
+    $('tTr').innerHTML = '<tr><td colspan="7" class="mut">Todavía no declaraste ningún tramo.</td></tr>';
+    return;
+  }
+  $('tTr').innerHTML = T.map((tr, i) => {
+    const e = tr._e || estadoTramo(tr, now);
+    const [cl, et] = PILL[e.estado] || PILL.sinDato;
+    const motivo = e.motivo ? ` <span class="mut">· ${esc(e.motivo)}</span>` : '';
+    const cambios = e.cambios && e.cambios.length
+      ? ` <span class="mut">· cambió ${e.cambios.map(c => c.campo).join(', ')}</span>` : '';
+    let acc;
+    if (tr.ejec) {
+      acc = `<span class="mut">${fecha(tr.ejec.ts)} · ${esc(tr.ejec.tipo || '?')} · ${fmt(tr.ejec.monto)}</span>
+        <button class="del mini" data-undo="${i}">deshacer</button>`;
+    } else {
+      acc = `<button class="mini sec" data-ok="${i}">se ejecutó</button>
+        <button class="mini del" data-nofill="${i}">no se llenó</button>`;
+    }
+    return `<tr>
+      <td><b>${esc(tr.ticker)}</b></td>
+      <td class="num">${fmt(tr.monto)}</td>
+      <td class="mut">${esc(tr.tipo || '—')}</td>
+      <td class="mut">${fecha(tr.desde)} → ${fecha(tr.hasta)}</td>
+      <td><span class="pill ${cl}">${et}</span>${motivo}${cambios}</td>
+      <td>${acc}</td>
+      <td><button class="del mini" data-deltr="${i}">×</button></td></tr>`;
+  }).join('');
+}
+
+function pintarHabitos(R) {
+  $('habs').innerHTML = R.habitos.map(h => {
+    const cuerpo = h.suficiente
+      ? `<div class="big">${pct(h.pct)}</div>
+         <div class="note">${h.cumplidas} de ${h.deN} juzgadas${h.sinDato ? ` · ${h.sinDato} sin dato` : ''}</div>`
+      : `<div class="callado">Faltan tramos para decir un número. Van ${h.deN} de ${MUESTRA_MIN}.</div>`;
+    return `<div class="card">
+      <div class="lbl">${esc(h.nombre)}</div>
+      ${cuerpo}
+      <div class="note">Racha ${h.racha}${h.mejor > h.racha ? ` · récord ${h.mejor}` : ''}</div>
+      <div class="note">${esc(h.accion)}</div>
+    </div>`;
+  }).join('');
+}
+
+function pintarTrayectoria(R) {
+  const t = R.trayectoria;
+  if (!t.hay || !t.pasos.length) {
+    $('dist').textContent = '—';
+    $('barAv').style.width = '0%';
+    return;
+  }
+  $('dist').textContent = pct(t.dist);
+  $('barAv').style.width = Math.min(100, (t.avance || 0) * 100).toFixed(1) + '%';
+  const acercaron = t.pasos.filter(p => p.acerco).length;
+  $('notaTray').innerHTML = `${acercaron} de ${t.pasos.length} compras te acercaron. `
+    + `Avance del plan ${pct(t.avance)}.`
+    + `<div class="serie">${t.pasos.map(p => `<i class="${p.acerco ? 'ok' : 'no'}"></i>`).join('')}</div>`
+    + `<div style="margin-top:6px">Se mide a monto invertido, no a valor de mercado: así el peso solo se mueve cuando comprás vos.</div>`;
+}
+
+function pintarTecnica(R) {
+  const a = R.tecnica.adherencia, p = R.tecnica.perfil;
+  if (a.suficiente) {
+    $('tecPct').textContent = pct(a.pct);
+    $('notaTec').innerHTML = `Mandaste el tipo que declaraste en ${a.cumple} de ${a.n}.`;
+  } else {
+    $('tecPct').textContent = '—';
+    $('notaTec').innerHTML = `<span class="callado">Van ${a.n} de ${MUESTRA_MIN}. Hasta ahí no significa nada.</span>`;
+  }
+  $('notaTec').innerHTML += `<div style="margin-top:6px">Ejecutadas: ${p.limite} a límite · ${p.mercado} a mercado`
+    + (p.sinLlenar ? ` · <b>${p.sinLlenar} límite que no se llenó</b>` : '')
+    + `</div><div style="margin-top:5px">La app no sostiene que el límite sea mejor. Cuenta si hiciste lo que dijiste.</div>`;
+}
+
+function pintarSenales(R) {
+  const s = R.senales, out = [];
+
+  if (s.contenido.hay && s.contenido.n) {
+    out.push(s.contenido.fuera.length
+      ? `<span class="pill p-warn">desvío</span> ${s.contenido.fuera.length} de ${s.contenido.n} compras fueron a papeles que no están en tu objetivo: ${s.contenido.fuera.map(f => esc(f.ticker)).join(', ')}.`
+      : `<span class="pill p-ok">ok</span> las ${s.contenido.n} compras fueron a papeles de tu objetivo.`);
+  } else {
+    out.push(`<span class="pill p-sd">sin dato</span> todavía no hay compras contra las que comparar el contenido.`);
+  }
+
+  if (s.ritmo.suficiente) {
+    const r = s.ritmo.razon;
+    const txt = r == null ? 'no hay ventana de plan para comparar'
+      : r < 0.5 ? `comprimiste el plan: se estiraba ${s.ritmo.spanPlan} días y lo hiciste en ${s.ritmo.spanReal}`
+      : r > 2 ? `estiraste el plan: eran ${s.ritmo.spanPlan} días y vas por ${s.ritmo.spanReal}`
+      : `vas en el ritmo que escribiste (${s.ritmo.spanReal} contra ${s.ritmo.spanPlan} días)`;
+    out.push(`<span class="pill ${r != null && (r < 0.5 || r > 2) ? 'p-warn' : 'p-ok'}">ritmo</span> ${txt}. `
+      + `${s.ritmo.dias} día(s) distintos para ${s.ritmo.n} tramos.`);
+  } else {
+    out.push(`<span class="pill p-sd">sin dato</span> con ${s.ritmo.n} tramos ejecutados no se puede hablar de ritmo. Hacen falta ${RITMO_MIN}.`);
+  }
+
+  const re = s.reescrituras;
+  out.push(re.enVuelo
+    ? `<span class="pill p-warn">reescritura</span> editaste el objetivo ${re.enVuelo} vez(ces) después de haber empezado a comprar. No está mal: queda anotado.`
+    : `<span class="pill p-ok">ok</span> no tocaste el objetivo desde que empezaste a ejecutar.`);
+
+  $('senales').innerHTML = out.map(o => `<div style="margin:7px 0;font-size:13.5px">${o}</div>`).join('')
+    + `<div class="note">La app no infiere estados de ánimo. Mide cuatro cosas observables: qué compraste, cuándo, si reescribiste el objetivo y si el plan se contradice con tus propias reglas.</div>`;
+}
+
+function pintarRevision() {
+  if (!REVISION || (!REVISION.falta && !REVISION.confirmar)) { $('revBox').innerHTML = ''; return; }
+  const items = REVISION.items.filter(i => i.estado !== 'ok').slice(0, 12);
+  $('revBox').innerHTML = `<div class="rev">
+    <b>Para revisar a ojo.</b> Nada de esto se corrige solo: un número mal leído rompe el tablero en silencio.
+    ${items.map(i => `<div class="${i.estado === 'falta' ? 'falta' : 'mut'}">· ${esc(i.txt)}</div>`).join('')}
+    ${REVISION.items.length > items.length ? `<div class="mut">· y ${REVISION.items.length - items.length} más</div>` : ''}
+  </div>`;
+}
+
+/* ===================== Eventos ===================== */
+function inicio() {
+  cargar();
+
+  $('addObj').onclick = () => { PLAN.objetivo.push({ ticker: '', peso: null, sector: null }); guardar(); };
+
+  $('tObj').addEventListener('change', ev => {
+    const el = ev.target;
+    if (el.dataset.o == null) return;
+    const o = PLAN.objetivo[+el.dataset.o], k = el.dataset.k;
+    const val = k === 'peso' ? num(el.value) : (el.value.trim() || null);
+    anotarEdicion(k, o.ticker, o[k], val);
+    o[k] = k === 'ticker' && val ? val.toUpperCase() : val;
+    guardar();
+  });
+  $('tObj').addEventListener('click', ev => {
+    const i = ev.target.dataset.delo;
+    if (i == null) return;
+    const o = PLAN.objetivo[+i];
+    anotarEdicion('baja', o.ticker, o.peso, null);
+    PLAN.objetivo.splice(+i, 1); guardar();
+  });
+
+  [['rMaxPos', 'maxPos'], ['rMaxSec', 'maxSector'], ['rMinPos', 'minPosiciones']].forEach(([id, k]) => {
+    $(id).value = PLAN.reglas[k] == null ? '' : PLAN.reglas[k];
+    $(id).onchange = () => {
+      anotarEdicion('regla.' + k, null, PLAN.reglas[k], num($(id).value));
+      PLAN.reglas[k] = num($(id).value);
+      guardar();
+    };
+  });
+
+  $('addTr').onclick = () => {
+    const tk = ($('nTk').value || '').toUpperCase().trim();
+    const monto = num($('nMonto').value);
+    if (!tk || !(monto > 0)) { $('nTk').focus(); return; }
+    PLAN.tramos.push({
+      id: 't' + (PLAN.tramos.length + 1) + '_' + Date.now().toString(36),
+      ticker: tk, monto, tipo: $('nTipo').value,
+      desde: deFecha($('nDesde').value) || Date.now(),
+      hasta: deFecha($('nHasta').value),
+      declarado: Date.now(), ejec: null
+    });
+    $('nTk').value = ''; $('nMonto').value = '';
+    guardar();
+  };
+
+  $('tTr').addEventListener('click', ev => {
+    const d = ev.target.dataset;
+    if (d.ok != null) {
+      const tr = PLAN.tramos[+d.ok];
+      tr.ejec = { ts: Date.now(), ticker: tr.ticker, monto: tr.monto, tipo: tr.tipo, lleno: true };
+    } else if (d.nofill != null) {
+      const tr = PLAN.tramos[+d.nofill];
+      tr.ejec = { ts: Date.now(), ticker: tr.ticker, monto: tr.monto, tipo: tr.tipo, lleno: false };
+    } else if (d.undo != null) {
+      PLAN.tramos[+d.undo].ejec = null;
+    } else if (d.deltr != null) {
+      PLAN.tramos.splice(+d.deltr, 1);
+    } else return;
+    guardar();
+  });
+
+  $('expo').onclick = () => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(PLAN, null, 2)], { type: 'application/json' }));
+    a.download = 'mi-plan-merval.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  $('impo').onchange = ev => {
+    const f = ev.target.files && ev.target.files[0];
+    if (!f) return;
+    const rd = new FileReader();
+    rd.onload = () => {
+      try {
+        const r = desdePlan(JSON.parse(rd.result));
+        PLAN = r.plan; REVISION = r.revision;
+        guardar();
+      } catch (e) {
+        $('revBox').innerHTML = '<div class="rev"><b class="falta">Ese archivo no es un JSON que pueda leer.</b></div>';
+      }
+    };
+    rd.readAsText(f);
+    ev.target.value = '';
+  };
+
+  $('wipe').onclick = () => {
+    if (!confirm('Borra el plan entero de este navegador. ¿Seguro?')) return;
+    localStorage.removeItem(CLAVE);
+    const r = desdePlan(planVacio());
+    PLAN = r.plan; REVISION = r.revision;
+    pintar();
+  };
+
+  pintar();
+}
+
+if (typeof document !== 'undefined' && document.getElementById('tal')) inicio();
+</script>
+</body>
+</html>
